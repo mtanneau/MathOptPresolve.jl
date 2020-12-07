@@ -3,5 +3,8 @@ uuid = "c46b0367-4903-4ff3-bf29-73e6bd648aaa"
 authors = ["Mathieu Tanneau and contributors"]
 version = "0.1.0"
 
+[deps]
+SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+
 [compat]
 julia = "1.5"
