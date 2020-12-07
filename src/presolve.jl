@@ -148,7 +148,7 @@ mutable struct PresolveData{T}
         # Scalings
         ps.row_scaling = ones(T, ps.nrow)
         ps.col_scaling = ones(T, ps.ncol)
-        
+
         # Index mappings
         ps.new_con_idx = Int[]
         ps.new_var_idx = Int[]
@@ -235,7 +235,7 @@ function extract_reduced_problem!(ps::PresolveData{T}) where {T}
             cind[k] = ps.new_con_idx[iold]
             cval[k] = aij
         end
-        
+
         # Set new column
         pb.acols[jnew] = Col{T}(cind, cval)
     end
@@ -450,7 +450,7 @@ function presolve!(ps::PresolveData{T}) where {T}
 
     # TODO: extract reduced problem (?)
 
-# Done.
+    # Done.
     return ps.status
 end
 
@@ -461,7 +461,7 @@ function compute_index_mapping!(ps::PresolveData)
     ps.old_var_idx = Vector{Int}(undef, ps.ncol)
 
     inew = 0
-        for iold in 1:ps.pb0.ncon
+    for iold in 1:ps.pb0.ncon
         if ps.rowflag[iold]
             inew += 1
             ps.new_con_idx[iold] = inew
@@ -471,7 +471,7 @@ function compute_index_mapping!(ps::PresolveData)
         end
     end
     jnew = 0
-        for jold in 1:ps.pb0.nvar
+    for jold in 1:ps.pb0.nvar
         if ps.colflag[jold]
             jnew += 1
             ps.new_var_idx[jold] = jnew
