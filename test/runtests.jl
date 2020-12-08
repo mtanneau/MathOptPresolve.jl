@@ -1,6 +1,22 @@
 using MathOptPresolve
 using Test
 
-@testset "MathOptPresolve.jl" begin
-    # Write your tests here.
+using SparseArrays
+
+const COEFF_TYPES = [Float64, BigFloat]
+
+@testset "Problem data" begin
+    include("problem_data.jl")
+end
+
+@testset "LP" begin
+    @testset "empty column" begin
+        include("lp/empty_column.jl")
+    end
+    @testset "empty row" begin
+        include("lp/empty_row.jl")
+    end
+    @testset "fixed variable" begin
+        include("lp/fixed_variable.jl")
+    end
 end
