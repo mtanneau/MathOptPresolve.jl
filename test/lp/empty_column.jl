@@ -20,7 +20,7 @@ function emtpy_column_tests(T::Type)
 
         MathOptPresolve.load_problem!(pb, "Test",
             true, [c], zero(T),
-            spzeros(T, 0, 1), T[], T[], [l], [u], String[], ["x"]
+            spzeros(T, 0, 1), T[], T[], [l], [u],
         )
         return pb
     end

@@ -8,7 +8,8 @@ struct FreeColumnSingleton{T} <: PresolveTransformation{T}
     row::Row{T}
 end
 
-function remove_free_column_singleton!(ps::PresolveData{T}, j::Int) where{T}
+function remove_free_column_singleton!(ps::PresolveData{T}, j::Int) where {T}
+    is_continuous(ps.pb0) || error("Free column routine currently only supported for LPs.")
 
     ps.colflag[j] && ps.nzcol[j] == 1 || return nothing  # only column singletons
 
@@ -108,7 +109,7 @@ function remove_free_column_singleton!(ps::PresolveData{T}, j::Int) where{T}
     return nothing
 end
 
-function postsolve!(sol::Solution{T}, op::FreeColumnSingleton{T}) where{T}
+function postsolve!(sol::Solution{T}, op::FreeColumnSingleton{T}) where {T}
     # Dual
     y = op.y
     sol.y_lower[op.i] = pos_part(y)
@@ -122,6 +123,6 @@ function postsolve!(sol::Solution{T}, op::FreeColumnSingleton{T}) where{T}
         sol.x[op.j] -= aik * sol.x[k]
     end
     sol.x[op.j] /= op.aij
-    
+
     return nothing
 end

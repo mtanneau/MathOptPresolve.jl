@@ -20,7 +20,6 @@ function test_fixed_variable_with_zeros(T::Type)
         A,
         zeros(T, m), ones(T, m),
         ones(T, n), ones(T, n),
-        ["" for _ in 1:m], ["" for _ in 1:n]
     )
 
     ps = MathOptPresolve.PresolveData(pb)

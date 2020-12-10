@@ -6,7 +6,9 @@ struct EmptyRow{T} <: PresolveTransformation{T}
     y::T  # dual multiplier
 end
 
-function remove_empty_row!(ps::PresolveData{T}, i::Int) where{T}
+function remove_empty_row!(ps::PresolveData{T}, i::Int) where {T}
+    is_continuous(ps.pb0) || error("Empty row routine currently only supported for LPs.")
+
     # Sanity checks
     (ps.rowflag[i] && ps.nzrow[i] == 0) || return nothing
 
@@ -50,7 +52,7 @@ function remove_empty_row!(ps::PresolveData{T}, i::Int) where{T}
         ps.solution.y_upper .= zero(T)
         ps.solution.s_lower .= zero(T)
         ps.solution.s_upper .= zero(T)
-        
+
         # Farkas ray: y⁺_i = 1 (any > 0 value works)
         ps.solution.primal_status = Sln_Unknown
         ps.solution.dual_status = Sln_InfeasibilityCertificate
@@ -70,7 +72,7 @@ function remove_empty_row!(ps::PresolveData{T}, i::Int) where{T}
     ps.nrow -= 1
 end
 
-function postsolve!(sol::Solution{T}, op::EmptyRow{T}) where{T}
+function postsolve!(sol::Solution{T}, op::EmptyRow{T}) where {T}
     sol.y_lower[op.i] = pos_part(op.y)
     sol.y_upper[op.i] = neg_part(op.y)
     return nothing

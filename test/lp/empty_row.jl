@@ -16,7 +16,6 @@ function empty_row_tests(T::Type)
     MathOptPresolve.load_problem!(pb, "test",
         true, c, zero(T),
         A, T.([-1, 1]), T.([1, 2]), zeros(T, n), fill(T(Inf), n),
-        ["c1", "c2"], ["x", "y", "z"]
     )
 
     ps = MathOptPresolve.PresolveData(pb)
@@ -78,7 +77,6 @@ function test_empty_row_1(T::Type)
     MathOptPresolve.load_problem!(pb, "test",
         true, c, zero(T),
         A, T.([1]), T.([2]), zeros(T, n), fill(T(Inf), n),
-        ["c1"], ["x"]
     )
 
     ps = MathOptPresolve.PresolveData(pb)
@@ -116,7 +114,6 @@ function test_empty_row_2(T::Type)
     MathOptPresolve.load_problem!(pb, "test",
         true, c, zero(T),
         A, T.([-2]), T.([-1]), zeros(T, n), fill(T(Inf), n),
-        ["c1"], ["x"]
     )
 
     ps = MathOptPresolve.PresolveData(pb)

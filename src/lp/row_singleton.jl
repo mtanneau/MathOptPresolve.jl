@@ -7,7 +7,9 @@ struct RowSingleton{T} <: PresolveTransformation{T}
 end
 
 
-function remove_row_singleton!(ps::PresolveData{T}, i::Int) where{T}
+function remove_row_singleton!(ps::PresolveData{T}, i::Int) where {T}
+    is_continuous(ps.pb0) || error("Row singleton routine currently only supported for LPs.")
+
     # Sanity checks
     (ps.rowflag[i] && ps.nzrow[i] == 1) || return nothing
 
@@ -78,7 +80,7 @@ function remove_row_singleton!(ps::PresolveData{T}, i::Int) where{T}
     return nothing
 end
 
-function postsolve!(sol::Solution{T}, op::RowSingleton{T}) where{T}
+function postsolve!(sol::Solution{T}, op::RowSingleton{T}) where {T}
 
     if op.force_lower
         if op.aij > zero(T)
