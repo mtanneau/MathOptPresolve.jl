@@ -90,7 +90,7 @@ mutable struct PresolveData{T}
         ps = new{T}()
 
         ps.updated = false
-        ps.status = Trm_Unknown
+        ps.status = NOT_CALLED
 
         ps.pb0 = pb
         ps.pb_red = nothing
@@ -364,7 +364,7 @@ function presolve!(ps::PresolveData{T}) where {T}
 
     # Check bound consistency on all rows/columns
     st = bounds_consistency_checks!(ps)
-    ps.status == Trm_PrimalInfeasible && return ps.status
+    ps.status == PRIMAL_INFEASIBLE && return ps.status
 
     # I. Remove all fixed variables, empty rows and columns
     # remove_fixed_variables!(ps)
@@ -372,7 +372,7 @@ function presolve!(ps::PresolveData{T}) where {T}
     remove_empty_columns!(ps)
 
     # TODO: check status for potential early return
-    ps.status == Trm_Unknown || return ps.status
+    ps.status == NOT_CALLED || return ps.status
 
     # Identify row singletons
     ps.row_singletons = [i for (i, nz) in enumerate(ps.nzrow) if ps.rowflag[i] && nz == 1]
@@ -380,43 +380,43 @@ function presolve!(ps::PresolveData{T}) where {T}
     # II. Passes
     ps.updated = true
     npasses = 0  # TODO: maximum number of passes
-    while ps.updated && ps.status == Trm_Unknown
+    while ps.updated && ps.status == NOT_CALLED
         npasses += 1
         ps.updated = false
         @debug "Presolve pass $npasses" ps.nrow ps.ncol
 
         bounds_consistency_checks!(ps)
-        ps.status == Trm_Unknown || return ps.status
+        ps.status == NOT_CALLED || return ps.status
         remove_empty_columns!(ps)
-        ps.status == Trm_Unknown || return ps.status
+        ps.status == NOT_CALLED || return ps.status
 
 
         # Remove all fixed variables
         # TODO: remove empty variables as well
         remove_row_singletons!(ps)
-        ps.status == Trm_Unknown || return ps.status
+        ps.status == NOT_CALLED || return ps.status
         remove_fixed_variables!(ps)
-        ps.status == Trm_Unknown || return ps.status
+        ps.status == NOT_CALLED || return ps.status
 
         # Remove forcing & dominated constraints
         remove_row_singletons!(ps)
-        ps.status == Trm_Unknown || return ps.status
+        ps.status == NOT_CALLED || return ps.status
         remove_forcing_rows!(ps)
-        ps.status == Trm_Unknown || return ps.status
+        ps.status == NOT_CALLED || return ps.status
 
         # Remove free and implied free column singletons
         remove_row_singletons!(ps)
-        ps.status == Trm_Unknown || return ps.status
+        ps.status == NOT_CALLED || return ps.status
         remove_free_column_singletons!(ps)
-        ps.status == Trm_Unknown || return ps.status
+        ps.status == NOT_CALLED || return ps.status
 
         # TODO: remove column singleton with doubleton equation
 
         # Dual reductions
         remove_row_singletons!(ps)
-        ps.status == Trm_Unknown || return ps.status
+        ps.status == NOT_CALLED || return ps.status
         remove_dominated_columns!(ps)
-        ps.status == Trm_Unknown || return ps.status
+        ps.status == NOT_CALLED || return ps.status
     end
 
     remove_empty_columns!(ps)
@@ -430,12 +430,12 @@ function presolve!(ps::PresolveData{T}) where {T}
     # TODO: check problem dimensions and declare optimality if problem is empty
     if ps.nrow == 0 && ps.ncol == 0
         # Problem is empty: declare optimality now
-        ps.status = Trm_Optimal
+        ps.status = OPTIMAL
 
         # Resize solution
         resize!(ps.solution, 0, 0)
-        ps.solution.primal_status = Sln_Optimal
-        ps.solution.dual_status = Sln_Optimal
+        ps.solution.primal_status = FEASIBLE_POINT
+        ps.solution.dual_status = FEASIBLE_POINT
         ps.solution.is_primal_ray = false
         ps.solution.is_dual_ray = false
         ps.solution.z_primal = ps.obj0
@@ -494,7 +494,7 @@ function bounds_consistency_checks!(ps::PresolveData{T}) where {T}
         if ps.rowflag[i] && l > u
             # Problem is primal infeasible
             @debug "Row $i is primal infeasible"
-            ps.status = Trm_PrimalInfeasible
+            ps.status = PRIMAL_INFEASIBLE
             ps.updated = true
 
             # Resize problem
@@ -507,8 +507,8 @@ function bounds_consistency_checks!(ps::PresolveData{T}) where {T}
             ps.solution.s_upper .= zero(T)
 
             # Farkas ray: y⁺_i = y⁻_i = 1 (any > 0 value works)
-            ps.solution.primal_status = Sln_Unknown
-            ps.solution.dual_status = Sln_InfeasibilityCertificate
+            ps.solution.primal_status = NO_POINT
+            ps.solution.dual_status = INFEASIBILITY_CERTIFICATE
             ps.solution.is_primal_ray = false
             ps.solution.is_dual_ray = true
             ps.solution.z_primal = ps.solution.z_dual = T(Inf)
@@ -523,7 +523,7 @@ function bounds_consistency_checks!(ps::PresolveData{T}) where {T}
         if ps.colflag[j] && l > u
             # Primal is primal infeasible
             @debug "Column $j is primal infeasible"
-            ps.status = Trm_PrimalInfeasible
+            ps.status = PRIMAL_INFEASIBLE
             ps.updated = true
 
             # Resize problem
@@ -536,8 +536,8 @@ function bounds_consistency_checks!(ps::PresolveData{T}) where {T}
             ps.solution.s_upper .= zero(T)
 
             # Farkas ray: y⁺_i = y⁻_i = 1 (any > 0 value works)
-            ps.solution.primal_status = Sln_Unknown
-            ps.solution.dual_status = Sln_InfeasibilityCertificate
+            ps.solution.primal_status = NO_POINT
+            ps.solution.dual_status = INFEASIBILITY_CERTIFICATE
             ps.solution.is_primal_ray = false
             ps.solution.is_dual_ray = true
             ps.solution.z_primal = ps.solution.z_dual = T(Inf)
@@ -584,7 +584,7 @@ If an empty column is created later, it is removed on the spot.
 function remove_empty_columns!(ps::PresolveData{T}) where {T}
     for j in 1:ps.pb0.nvar
         remove_empty_column!(ps, j)
-        ps.status == Trm_Unknown || break
+        ps.status == NOT_CALLED || break
     end
     return nothing
 end
@@ -693,7 +693,7 @@ function remove_dominated_columns!(ps::PresolveData{T}) where {T}
 
     for (j, flag) in enumerate(ps.colflag)
         remove_dominated_column!(ps, j)
-        ps.status == Trm_Unknown || break
+        ps.status == NOT_CALLED || break
     end
     return nothing
 end

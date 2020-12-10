@@ -27,7 +27,7 @@ function empty_row_tests(T::Type)
     MathOptPresolve.remove_empty_row!(ps, 1)
 
     @test ps.updated
-    @test ps.status == MathOptPresolve.Trm_Unknown
+    @test ps.status == MOP.NOT_CALLED
     @test ps.nrow == 1
     @test !ps.rowflag[1] && ps.rowflag[2]
     @test length(ps.ops) == 1
@@ -41,14 +41,14 @@ function empty_row_tests(T::Type)
     # This should detect infeasibility
     MathOptPresolve.remove_empty_row!(ps, 2)
 
-    @test ps.status == MathOptPresolve.Trm_PrimalInfeasible
+    @test ps.status == MOP.PRIMAL_INFEASIBLE
     @test ps.nrow == 1
     @test !ps.rowflag[1] && ps.rowflag[2]
     @test length(ps.ops) == 1
 
     # Check solution status & objective value
     sol = ps.solution
-    @test sol.dual_status == MathOptPresolve.Sln_InfeasibilityCertificate
+    @test sol.dual_status == MOP.INFEASIBILITY_CERTIFICATE
     @test sol.z_primal == sol.z_dual == T(Inf)
 
     # Check Farkas ray
@@ -82,14 +82,14 @@ function test_empty_row_1(T::Type)
     ps = MathOptPresolve.PresolveData(pb)
     MathOptPresolve.remove_empty_row!(ps, 1)
 
-    @test ps.status == MathOptPresolve.Trm_PrimalInfeasible
+    @test ps.status == MOP.PRIMAL_INFEASIBLE
     @test ps.nrow == 1
     @test ps.rowflag[1]
     @test length(ps.ops) == 0
 
     # Check solution status & objective value
     sol = ps.solution
-    @test sol.dual_status == MathOptPresolve.Sln_InfeasibilityCertificate
+    @test sol.dual_status == MOP.INFEASIBILITY_CERTIFICATE
     @test sol.z_primal == sol.z_dual == T(Inf)
 
     # Check Farkas ray
@@ -119,14 +119,14 @@ function test_empty_row_2(T::Type)
     ps = MathOptPresolve.PresolveData(pb)
     MathOptPresolve.remove_empty_row!(ps, 1)
 
-    @test ps.status == MathOptPresolve.Trm_PrimalInfeasible
+    @test ps.status == MOP.PRIMAL_INFEASIBLE
     @test ps.nrow == 1
     @test ps.rowflag[1]
     @test length(ps.ops) == 0
 
     # Check solution status & objective value
     sol = ps.solution
-    @test sol.dual_status == MathOptPresolve.Sln_InfeasibilityCertificate
+    @test sol.dual_status == MOP.INFEASIBILITY_CERTIFICATE
     @test sol.z_primal == sol.z_dual == T(Inf)
 
     # Check Farkas ray

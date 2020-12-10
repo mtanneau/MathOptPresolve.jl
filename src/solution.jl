@@ -18,7 +18,9 @@ mutable struct Solution{T}
     s_upper::Vector{T}
 
     Solution{T}(m, n) where {T} = new{T}(
-        m, n, Sln_Unknown, Sln_Unknown, false, false,
+        m, n,
+        NO_POINT, NO_POINT,
+        false, false,
         zero(T), zero(T),
         zeros(T, n), zeros(T, m),
         zeros(T, m), zeros(T, m),

@@ -18,7 +18,7 @@ function remove_empty_row!(ps::PresolveData{T}, i::Int) where {T}
     if ub < zero(T)
         # Infeasible
         @debug "Row $i is primal infeasible"
-        ps.status = Trm_PrimalInfeasible
+        ps.status = PRIMAL_INFEASIBLE
         ps.updated = true
 
         # Resize problem
@@ -31,8 +31,8 @@ function remove_empty_row!(ps::PresolveData{T}, i::Int) where {T}
         ps.solution.s_upper .= zero(T)
 
         # Farkas ray: y⁺_i = 1 (any > 0 value works)
-        ps.solution.primal_status = Sln_Unknown
-        ps.solution.dual_status = Sln_InfeasibilityCertificate
+        ps.solution.primal_status = NO_POINT
+        ps.solution.dual_status = INFEASIBILITY_CERTIFICATE
         ps.solution.is_primal_ray = false
         ps.solution.is_dual_ray = true
         ps.solution.z_primal = ps.solution.z_dual = T(Inf)
@@ -41,7 +41,7 @@ function remove_empty_row!(ps::PresolveData{T}, i::Int) where {T}
         return
     elseif lb > zero(T)
         @debug "Row $i is primal infeasible"
-        ps.status = Trm_PrimalInfeasible
+        ps.status = PRIMAL_INFEASIBLE
         ps.updated = true
 
         # Resize problem
@@ -54,8 +54,8 @@ function remove_empty_row!(ps::PresolveData{T}, i::Int) where {T}
         ps.solution.s_upper .= zero(T)
 
         # Farkas ray: y⁺_i = 1 (any > 0 value works)
-        ps.solution.primal_status = Sln_Unknown
-        ps.solution.dual_status = Sln_InfeasibilityCertificate
+        ps.solution.primal_status = NO_POINT
+        ps.solution.dual_status = INFEASIBILITY_CERTIFICATE
         ps.solution.is_primal_ray = false
         ps.solution.is_dual_ray = true
         ps.solution.z_primal = ps.solution.z_dual = T(Inf)
