@@ -59,6 +59,8 @@ function run_tests_pbdata(T::Type)
         @test pb.lcon == [T(-Inf), -one(T)]
         @test pb.ucon == [one(T), zero(T)]
 
+        @test pb.var_types == [MathOptPresolve.CONTINUOUS, MathOptPresolve.BINARY]
+
         empty!(pb)
         @test pb.name == ""
         @test iszero(pb.obj0)
