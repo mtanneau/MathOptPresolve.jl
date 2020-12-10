@@ -60,6 +60,7 @@ function run_tests_pbdata(T::Type)
         @test pb.ucon == [one(T), zero(T)]
 
         @test pb.var_types == [MathOptPresolve.CONTINUOUS, MathOptPresolve.BINARY]
+        @test !pb.is_continuous
 
         empty!(pb)
         @test pb.name == ""
