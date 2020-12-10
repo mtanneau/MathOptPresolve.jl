@@ -6,7 +6,7 @@ struct DominatedColumn{T} <: PresolveTransformation{T}
 end
 
 function remove_dominated_column!(ps::PresolveData{T}, j::Int; tol::T=100 * sqrt(eps(T))) where {T}
-    is_continuous(ps.pb0) || error("Dominated column routine currently only supported for LPs.")
+    ps.pb0.is_continuous || error("Dominated column routine currently only supported for LPs.")
 
     ps.colflag[j] || return nothing
 

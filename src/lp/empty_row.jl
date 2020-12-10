@@ -7,7 +7,7 @@ struct EmptyRow{T} <: PresolveTransformation{T}
 end
 
 function remove_empty_row!(ps::PresolveData{T}, i::Int) where {T}
-    is_continuous(ps.pb0) || error("Empty row routine currently only supported for LPs.")
+    ps.pb0.is_continuous || error("Empty row routine currently only supported for LPs.")
 
     # Sanity checks
     (ps.rowflag[i] && ps.nzrow[i] == 0) || return nothing

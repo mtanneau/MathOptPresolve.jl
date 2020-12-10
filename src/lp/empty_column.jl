@@ -5,7 +5,7 @@ struct EmptyColumn{T} <: PresolveTransformation{T}
 end
 
 function remove_empty_column!(ps::PresolveData{T}, j::Int) where {T}
-    is_continuous(ps.pb0) || error("Empty column routine currently only supported for LPs.")
+    ps.pb0.is_continuous || error("Empty column routine currently only supported for LPs.")
 
     # Sanity check
     (ps.colflag[j] && (ps.nzcol[j] == 0)) || return nothing

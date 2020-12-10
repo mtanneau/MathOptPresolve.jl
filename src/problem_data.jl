@@ -57,6 +57,7 @@ mutable struct ProblemData{T}
 
     # Variable types
     var_types::Vector{VariableType}
+    is_continuous::Bool
 
     # Only allow empty problems to be instantiated for now
     ProblemData{T}(pbname::String="") where {T} = new{T}(
@@ -64,7 +65,7 @@ mutable struct ProblemData{T}
         true, T[], zero(T),
         Row{T}[], Col{T}[],
         T[], T[], T[], T[],
-        VariableType[],
+        VariableType[], true,
     )
 end
 
@@ -90,6 +91,7 @@ function Base.empty!(pb::ProblemData{T}) where {T}
     pb.uvar = T[]
 
     pb.var_types = VariableType[]
+    pb.is_continuous = true
 
     return pb
 end
@@ -117,6 +119,9 @@ function load_problem!(pb::ProblemData{T},
     isfinite(obj0) || error("Objective offset $obj0 is not finite")
     nvar == length(lvar) || error("")
     nvar == length(uvar) || error("")
+    if var_types !== nothing
+        nvar == length(var_types) || error("")
+    end
 
     # Copy data
     pb.name = name
@@ -131,8 +136,10 @@ function load_problem!(pb::ProblemData{T},
     pb.uvar = copy(uvar)
     if var_types === nothing
         pb.var_types = fill(CONTINUOUS, nvar)
+        pb.is_continuous = true
     else
         pb.var_types = copy(var_types)
+        pb.is_continuous = all(pb.var_types .== CONTINUOUS)
     end
 
     # Load coefficients
@@ -151,5 +158,3 @@ function load_problem!(pb::ProblemData{T},
 
     return pb
 end
-
-is_continuous(pb::ProblemData) = all(pb.var_types .== CONTINUOUS)

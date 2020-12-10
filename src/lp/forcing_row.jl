@@ -12,7 +12,7 @@ struct DominatedRow{T} <: PresolveTransformation{T}
 end
 
 function remove_forcing_row!(ps::PresolveData{T}, i::Int) where {T}
-    is_continuous(ps.pb0) || error("Forcing row routine currently only supported for LPs.")
+    ps.pb0.is_continuous || error("Forcing row routine currently only supported for LPs.")
 
     ps.rowflag[i] || return
     ps.nzrow[i] == 1 && return  # skip row singletons
