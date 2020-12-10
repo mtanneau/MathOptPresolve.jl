@@ -1,7 +1,3 @@
-Base.@kwdef mutable struct PresolveOptions{T}
-    Level::Int = 1  # Presolve level
-end
-
 """
     PresolveTransformation{T}
 
@@ -598,7 +594,7 @@ Remove all fixed variables.
 function remove_fixed_variables!(ps::PresolveData{T}) where {T}
     for (j, flag) in enumerate(ps.colflag)
         flag || continue
-    remove_fixed_variable!(ps, j)
+        remove_fixed_variable!(ps, j)
     end
     return nothing
 end
