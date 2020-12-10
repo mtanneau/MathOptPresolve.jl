@@ -216,6 +216,7 @@ function extract_reduced_problem!(ps::PresolveData{T}) where {T}
 
     # Extract new columns
     pb.acols = Vector{Col{T}}(undef, pb.nvar)
+    pb.var_types = Vector{VariableType}(undef, pb.nvar)
     jnew = 0
     for (jold, col) in enumerate(ps.pb0.acols)
         ps.colflag[jold] || continue
@@ -238,12 +239,8 @@ function extract_reduced_problem!(ps::PresolveData{T}) where {T}
 
         # Set new column
         pb.acols[jnew] = Col{T}(cind, cval)
+        pb.var_types[jnew] = ps.pb0.var_types[jold]
     end
-
-    # Variable and constraint names
-    # TODO: we don't need these
-    pb.var_names = ps.pb0.var_names[ps.colflag]
-    pb.con_names = ps.pb0.con_names[ps.rowflag]
 
     # Scaling
     rscale = zeros(T, ps.nrow)

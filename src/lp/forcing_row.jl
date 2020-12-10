@@ -11,9 +11,11 @@ struct DominatedRow{T} <: PresolveTransformation{T}
     i::Int  # Row index
 end
 
-function remove_forcing_row!(ps::PresolveData{T}, i::Int) where{T}
+function remove_forcing_row!(ps::PresolveData{T}, i::Int) where {T}
+    ps.pb0.is_continuous || error("Forcing row routine currently only supported for LPs.")
+
     ps.rowflag[i] || return
-    ps.nzrow[i] == 1 && return  # skip row singletons 
+    ps.nzrow[i] == 1 && return  # skip row singletons
 
     # Implied row bounds
     row = ps.pb0.arows[i]
@@ -89,7 +91,7 @@ function remove_forcing_row!(ps::PresolveData{T}, i::Int) where{T}
                 # ps.nzrow[k] == 0 && remove_empty_row!(ps, k)
                 ps.nzrow[k] == 1 && push!(ps.row_singletons, k)
             end
-            
+
             cj = ps.obj[j]
             push!(cols_, col_)
             push!(xs, xj_)
@@ -151,7 +153,7 @@ function remove_forcing_row!(ps::PresolveData{T}, i::Int) where{T}
                 # ps.nzrow[k] == 0 && remove_empty_row!(ps, k)
                 ps.nzrow[k] == 1 && push!(ps.row_singletons, k)
             end
-            
+
             cj = ps.obj[j]
             push!(cols_, col_)
             push!(xs, xj_)
@@ -175,14 +177,14 @@ function remove_forcing_row!(ps::PresolveData{T}, i::Int) where{T}
     return nothing
 end
 
-function postsolve!(sol::Solution{T}, op::DominatedRow{T}) where{T}
+function postsolve!(sol::Solution{T}, op::DominatedRow{T}) where {T}
     sol.y_lower[op.i] = zero(T)
     sol.y_upper[op.i] = zero(T)
     return nothing
 end
 
 # TODO: postsolve of forcing rows
-function postsolve!(sol::Solution{T}, op::ForcingRow{T}) where{T}
+function postsolve!(sol::Solution{T}, op::ForcingRow{T}) where {T}
 
     # Primal
     for (j, xj) in zip(op.row.nzind, op.xs)

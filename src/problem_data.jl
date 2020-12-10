@@ -8,6 +8,8 @@ end
 const Row = RowOrCol
 const Col = RowOrCol
 
+@enum VariableType CONTINUOUS BINARY GENERAL_INTEGER
+
 """
     ProblemData{T}
 
@@ -46,16 +48,16 @@ mutable struct ProblemData{T}
     # TODO: Data structures for QP
     # qrows
     # qcols
-    
+
     # Bounds
     lcon::Vector{T}
     ucon::Vector{T}
     lvar::Vector{T}
     uvar::Vector{T}
 
-    # Names
-    con_names::Vector{String}
-    var_names::Vector{String}
+    # Variable types
+    var_types::Vector{VariableType}
+    is_continuous::Bool
 
     # Only allow empty problems to be instantiated for now
     ProblemData{T}(pbname::String="") where {T} = new{T}(
@@ -63,7 +65,7 @@ mutable struct ProblemData{T}
         true, T[], zero(T),
         Row{T}[], Col{T}[],
         T[], T[], T[], T[],
-        String[], String[]
+        VariableType[], true,
     )
 end
 
@@ -88,14 +90,14 @@ function Base.empty!(pb::ProblemData{T}) where {T}
     pb.lvar = T[]
     pb.uvar = T[]
 
-    pb.con_names = String[]
-    pb.var_names = String[]
+    pb.var_types = VariableType[]
+    pb.is_continuous = true
 
     return pb
 end
 
 """
-    load_problem!(pb, )
+    load_problem!(pb, ...)
 
 Load entire problem.
 """
@@ -105,7 +107,7 @@ function load_problem!(pb::ProblemData{T},
     A::SparseMatrixCSC,
     lcon::Vector{T}, ucon::Vector{T},
     lvar::Vector{T}, uvar::Vector{T},
-    con_names::Vector{String}, var_names::Vector{String}
+    var_types::Union{Nothing,Vector{VariableType}}=nothing,
 ) where {T}
     empty!(pb)
 
@@ -113,11 +115,13 @@ function load_problem!(pb::ProblemData{T},
     ncon, nvar = size(A)
     ncon == length(lcon) || error("")
     ncon == length(ucon) || error("")
-    ncon == length(con_names) || error("")
     nvar == length(obj)
     isfinite(obj0) || error("Objective offset $obj0 is not finite")
     nvar == length(lvar) || error("")
     nvar == length(uvar) || error("")
+    if var_types !== nothing
+        nvar == length(var_types) || error("")
+    end
 
     # Copy data
     pb.name = name
@@ -130,8 +134,13 @@ function load_problem!(pb::ProblemData{T},
     pb.ucon = copy(ucon)
     pb.lvar = copy(lvar)
     pb.uvar = copy(uvar)
-    pb.con_names = copy(con_names)
-    pb.var_names = copy(var_names)
+    if var_types === nothing
+        pb.var_types = fill(CONTINUOUS, nvar)
+        pb.is_continuous = true
+    else
+        pb.var_types = copy(var_types)
+        pb.is_continuous = all(pb.var_types .== CONTINUOUS)
+    end
 
     # Load coefficients
     pb.acols = Vector{Col{T}}(undef, nvar)

@@ -13,7 +13,8 @@ function run_tests_pbdata(T::Type)
             s.t.    -∞ ⩽  -x1 +   x2 ⩽ 1
                     -1 ⩽ 2 x1 - 2 x2 ⩽ 0
                     0 ⩽ x1 ⩽ ∞
-                    1 ⩽ x2 ⩽ ∞ =#
+                    1 ⩽ x2 ⩽ ∞
+                    x2 in \{0,1\} =#
 
         MathOptPresolve.load_problem!(
             pb,
@@ -27,8 +28,7 @@ function run_tests_pbdata(T::Type)
             T[1.0, 0.0],
             T[0.0, 1.0],
             T[Inf, Inf],
-            ["row1", "row2"],
-            ["x1", "x2"],
+            MathOptPresolve.VariableType[MathOptPresolve.CONTINUOUS, MathOptPresolve.BINARY],
         )
 
         @test pb.name == "test-filled"
@@ -40,7 +40,6 @@ function run_tests_pbdata(T::Type)
         @test pb.obj == [one(T), 2 * one(T)]
         @test pb.lvar == [zero(T), one(T)]
         @test pb.uvar == [T(Inf), T(Inf)]
-        @test pb.var_names == ["x1", "x2"]
 
         # Check dimensions
         check_problem_size(pb, 2, 2)
@@ -59,9 +58,9 @@ function run_tests_pbdata(T::Type)
         # Check row bounds
         @test pb.lcon == [T(-Inf), -one(T)]
         @test pb.ucon == [one(T), zero(T)]
-        # Check names
-        @test pb.con_names == ["row1", "row2"]
-        @test pb.var_names == ["x1", "x2"]
+
+        @test pb.var_types == [MathOptPresolve.CONTINUOUS, MathOptPresolve.BINARY]
+        @test !pb.is_continuous
 
         empty!(pb)
         @test pb.name == ""
@@ -86,8 +85,6 @@ function check_problem_size(pb::MathOptPresolve.ProblemData, ncon::Int, nvar::In
     @test length(pb.lvar) == nvar
     @test length(pb.uvar) == nvar
 
-    @test length(pb.con_names) == ncon
-    @test length(pb.var_names) == nvar
     return nothing
 end
 

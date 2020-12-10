@@ -5,7 +5,9 @@ struct DominatedColumn{T} <: PresolveTransformation{T}
     col::Col{T}  # Column
 end
 
-function remove_dominated_column!(ps::PresolveData{T}, j::Int; tol::T=100*sqrt(eps(T))) where{T}
+function remove_dominated_column!(ps::PresolveData{T}, j::Int; tol::T=100 * sqrt(eps(T))) where {T}
+    ps.pb0.is_continuous || error("Dominated column routine currently only supported for LPs.")
+
     ps.colflag[j] || return nothing
 
     # Compute implied bounds on reduced cost: `ls ≤ s ≤ us`
@@ -80,7 +82,7 @@ function remove_dominated_column!(ps::PresolveData{T}, j::Int; tol::T=100*sqrt(e
     elseif cj - ls < -tol
         # Reduced cost is always negative => fix to upper bound (or problem is unbounded)
         ub = ps.ucol[j]
-        
+
         if !isfinite(ub)
             # Problem is unbounded
             @debug "Column $j is (upper) unbounded"
@@ -140,7 +142,7 @@ function remove_dominated_column!(ps::PresolveData{T}, j::Int; tol::T=100*sqrt(e
     return nothing
 end
 
-function postsolve!(sol::Solution{T}, op::DominatedColumn{T}) where{T}
+function postsolve!(sol::Solution{T}, op::DominatedColumn{T}) where {T}
     # Primal value
     sol.x[op.j] = op.x
 

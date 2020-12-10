@@ -4,7 +4,9 @@ struct EmptyColumn{T} <: PresolveTransformation{T}
     s::T  # Reduced cost
 end
 
-function remove_empty_column!(ps::PresolveData{T}, j::Int) where{T}
+function remove_empty_column!(ps::PresolveData{T}, j::Int) where {T}
+    ps.pb0.is_continuous || error("Empty column routine currently only supported for LPs.")
+
     # Sanity check
     (ps.colflag[j] && (ps.nzcol[j] == 0)) || return nothing
 
@@ -74,7 +76,7 @@ function remove_empty_column!(ps::PresolveData{T}, j::Int) where{T}
             ps.solution.z_primal = ps.solution.z_dual = -T(Inf)
             j_ = ps.new_var_idx[j]
             ps.solution.x[j_] = one(T)
-            
+
             return
         end
     else
@@ -97,7 +99,7 @@ function remove_empty_column!(ps::PresolveData{T}, j::Int) where{T}
     return nothing
 end
 
-function postsolve!(sol::Solution{T}, op::EmptyColumn{T}) where{T}
+function postsolve!(sol::Solution{T}, op::EmptyColumn{T}) where {T}
     sol.x[op.j] = op.x
     sol.s_lower[op.j] = pos_part(op.s)
     sol.s_upper[op.j] = neg_part(op.s)
