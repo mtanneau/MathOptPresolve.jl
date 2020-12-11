@@ -1,5 +1,5 @@
 """
-    ProblemStatus
+    ModelStatus
 
 - `NOT_INFERRED`: Presolve has not inferred the status of the problem.
 - `OPTIMAL`: The current solution(s) are optimal.
