@@ -8,7 +8,7 @@ function run_tests_pbdata(T::Type)
         @test iszero(pb.obj0)
 
         # The model is:
-        #= 
+        #=
             min     x1 + 2 x2
             s.t.    -∞ ⩽  -x1 +   x2 ⩽ 1
                     -1 ⩽ 2 x1 - 2 x2 ⩽ 0
@@ -66,6 +66,40 @@ function run_tests_pbdata(T::Type)
         @test pb.name == ""
         @test iszero(pb.obj0)
         check_problem_size(pb, 0, 0)
+    end
+
+    @testset "presolve!" begin
+        pb = MathOptPresolve.ProblemData{T}()
+
+        # The model is:
+        #=
+            min     x1 + 2 x2
+            s.t.    1 ⩽  x1 ⩽ 1
+                    0 ⩽ x1 ⩽ ∞
+                    1 ⩽ x2 ⩽ ∞ =#
+
+        MOP.load_problem!(
+            pb,
+            "optimal",
+            true,
+            T[1.0, 2.0],
+            zero(T),
+            sparse([1.0  0.0]),
+            T[1.0],
+            T[1.0],
+            T[0.0, 1.0],
+            T[Inf, Inf],
+        )
+        ps = MOP.PresolveData(pb)
+        status = MOP.presolve!(ps)
+
+        @test status == MOP.OPTIMAL
+        @test ps.solution.m == 0
+        @test ps.solution.n == 0
+        @test ps.solution.primal_status == MOP.FEASIBLE_POINT
+        @test ps.solution.dual_status == MOP.FEASIBLE_POINT
+        @test ps.solution.z_primal == 3.0
+        @test ps.solution.z_dual == 3.0
     end
 
     return nothing

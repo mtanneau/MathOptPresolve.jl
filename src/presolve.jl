@@ -363,10 +363,10 @@ macro _return_if_inferred(expr)
     @assert length(expr.args) == 2
     func = expr.args[1]
     ps = expr.args[2]
-    return quote
+    return esc(quote
         $func($ps)
-        $ps.status == NO_INFERENCE || return $ps.status
-    end
+        $ps.status == NOT_INFERRED || return $ps.status
+    end)
 end
 
 """
@@ -656,7 +656,7 @@ function remove_dominated_columns!(ps::PresolveData{T}) where {T}
         iszero(aij) && continue  # empty column
 
         # Strengthen dual bounds
-        #= 
+        #=
 
         =#
         cj = ps.obj[j]
