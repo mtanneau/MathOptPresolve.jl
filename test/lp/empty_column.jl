@@ -56,7 +56,7 @@ function emtpy_column_tests(T::Type)
                 @test sol.m == 0 && sol.n == 1
                 @test sol.x[1] > 0
             else
-                @test ps.status == MOP.NOT_CALLED
+                @test ps.status == MOP.NOT_INFERRED
                 @test !ps.colflag[1]
                 @test ps.ncol == 0
                 @test ps.updated

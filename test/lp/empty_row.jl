@@ -27,7 +27,7 @@ function empty_row_tests(T::Type)
     MathOptPresolve.remove_empty_row!(ps, 1)
 
     @test ps.updated
-    @test ps.status == MOP.NOT_CALLED
+    @test ps.status == MOP.NOT_INFERRED
     @test ps.nrow == 1
     @test !ps.rowflag[1] && ps.rowflag[2]
     @test length(ps.ops) == 1

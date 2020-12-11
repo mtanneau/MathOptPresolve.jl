@@ -44,7 +44,7 @@ function remove_dominated_column!(ps::PresolveData{T}, j::Int; tol::T=100 * sqrt
 
             # Unbounded ray: xj = -1
             ps.solution.primal_status = INFEASIBILITY_CERTIFICATE
-            ps.solution.dual_status = NO_POINT
+            ps.solution.dual_status = NO_SOLUTION
             ps.solution.is_primal_ray = true
             ps.solution.is_dual_ray = false
             ps.solution.z_primal = ps.solution.z_dual = -T(Inf)
@@ -101,7 +101,7 @@ function remove_dominated_column!(ps::PresolveData{T}, j::Int; tol::T=100 * sqrt
 
             # Unbounded ray: xj = -1
             ps.solution.primal_status = INFEASIBILITY_CERTIFICATE
-            ps.solution.dual_status = NO_POINT
+            ps.solution.dual_status = NO_SOLUTION
             ps.solution.is_primal_ray = true
             ps.solution.is_dual_ray = false
             ps.solution.z_primal = ps.solution.z_dual = -T(Inf)

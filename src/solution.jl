@@ -19,7 +19,7 @@ mutable struct Solution{T}
 
     Solution{T}(m, n) where {T} = new{T}(
         m, n,
-        NO_POINT, NO_POINT,
+        NO_SOLUTION, NO_SOLUTION,
         false, false,
         zero(T), zero(T),
         zeros(T, n), zeros(T, m),

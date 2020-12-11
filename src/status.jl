@@ -1,13 +1,13 @@
 """
-    TerminationStatus
+    ProblemStatus
 
-- `NOT_CALLED`: Presolve has not run.
+- `NOT_INFERRED`: Presolve has not inferred the status of the problem.
 - `OPTIMAL`: The current solution(s) are optimal.
 - `PRIMAL_INFEASIBLE`: The model is primal infeasible.
 - `DUAL_INFEASIBLE`: The model is dual infeasible.
 """
-@enum(TerminationStatus,
-    NOT_CALLED,
+@enum(ModelStatus,
+    NOT_INFERRED,
     OPTIMAL,
     PRIMAL_INFEASIBLE,
     DUAL_INFEASIBLE,
@@ -17,7 +17,7 @@
     SolutionStatus
 
 Solution Status code
-- `NO_POINT`: No current point.
+- `NO_SOLUTION`: No current point.
 - `FEASIBLE_POINT`: The current point is feasible.
 - `INFEASIBLE_POINT`: The current point is infeasible.
 - `INFEASIBILITY_CERTIFICATE`: The current point is a proof of infeasibility
@@ -25,7 +25,7 @@ of the other problem. For example, a dual solution with INFEASIBILITY_CERTIFICAT
 status is a proof of infeasibility of the primal.
 """
 @enum(SolutionStatus,
-    NO_POINT,
+    NO_SOLUTION,
     FEASIBLE_POINT,
     INFEASIBLE_POINT,
     INFEASIBILITY_CERTIFICATE,

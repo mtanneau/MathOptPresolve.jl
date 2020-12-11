@@ -31,7 +31,7 @@ function remove_empty_row!(ps::PresolveData{T}, i::Int) where {T}
         ps.solution.s_upper .= zero(T)
 
         # Farkas ray: y⁺_i = 1 (any > 0 value works)
-        ps.solution.primal_status = NO_POINT
+        ps.solution.primal_status = NO_SOLUTION
         ps.solution.dual_status = INFEASIBILITY_CERTIFICATE
         ps.solution.is_primal_ray = false
         ps.solution.is_dual_ray = true
@@ -54,7 +54,7 @@ function remove_empty_row!(ps::PresolveData{T}, i::Int) where {T}
         ps.solution.s_upper .= zero(T)
 
         # Farkas ray: y⁺_i = 1 (any > 0 value works)
-        ps.solution.primal_status = NO_POINT
+        ps.solution.primal_status = NO_SOLUTION
         ps.solution.dual_status = INFEASIBILITY_CERTIFICATE
         ps.solution.is_primal_ray = false
         ps.solution.is_dual_ray = true
