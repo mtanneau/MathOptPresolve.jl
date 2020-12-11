@@ -6,7 +6,3 @@ CurrentModule = MathOptPresolve
 
 ```@index
 ```
-
-```@autodocs
-Modules = [MathOptPresolve]
-```

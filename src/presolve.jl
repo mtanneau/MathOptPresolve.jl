@@ -1,3 +1,5 @@
+abstract type AbstractPresolveRule end
+
 """
     PresolveTransformation{T}
 

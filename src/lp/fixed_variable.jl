@@ -1,3 +1,39 @@
+"""
+    FixedVariableRule
+
+Eliminate all fixed variables.
+
+A variable ``x_{j}`` is fixed if its current lower and upper bounds are equal.
+
+## Presolve
+
+A row
+```math
+l_{i} \\leq a_{i, j}x_{j} + \\sum_{k \\neq j} a_{i, k} x_{k} \\leq u_{i}
+```
+is transformed into
+```math
+l_{i} - a_{i, j} \\bar{x}_{j} \\leq \\sum_{k \\neq j} a_{i, k} x_{k} \\leq u_{i} - a_{i, j} \\bar{x}_{j}
+```
+
+## Postsolve
+
+
+
+For dual variables, first compute
+```math
+z_{j} = c_{j} - \\sum_{i} a_{i, j} (y_{i}^{l} - y_{i}^{u}),
+```
+then recover ``z_{j}^{l} = z_{j}^{+}`` and ``z_{j}^{u} = z_{j}^{-}``.
+
+
+## Misc
+
+* This is a primal reduction.
+* If ``x_{j}`` is integer and fixed to a fractional value, then the problem in infeasible.
+"""
+struct FixedVariableRule <: AbstractPresolveRule end
+
 struct FixedVariable{T} <: PresolveTransformation{T}
     j::Int  # variable index
     x::T  # primal value
@@ -5,14 +41,22 @@ struct FixedVariable{T} <: PresolveTransformation{T}
     col::Col{T}  # current column
 end
 
-function remove_fixed_variable!(ps::PresolveData, j::Int)
+function apply!(::FixedVariableRule, ps::PresolveData)
+
+    for (j, flag) in enumerate(ps.colflag)
+        remove_fixed_variable!(ps, j)
+    end
+
+    return nothing
+end
+
+function remove_fixed_variable!(ps::PresolveData{T}, j::Int; ϵ::T=eps(T)) where {T}
     ps.colflag[j] || return nothing  # Column was already removed
-    
+
     # Check bounds
     lb, ub = ps.lcol[j], ps.ucol[j]
 
-    # TODO: use tolerance
-    if lb == ub
+    if abs(ub - lb) <= ϵ
         @debug "Fix variable $j to $lb"
 
         col = ps.pb0.acols[j]
