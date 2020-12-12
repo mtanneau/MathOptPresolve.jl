@@ -27,7 +27,7 @@ whose dual writes
 """
 mutable struct PresolveData{T}
     updated::Bool
-    status::TerminationStatus
+    status::ModelStatus
 
     # Original problem
     pb0::ProblemData{T}
@@ -90,7 +90,7 @@ mutable struct PresolveData{T}
         ps = new{T}()
 
         ps.updated = false
-        ps.status = Trm_Unknown
+        ps.status = NOT_INFERRED
 
         ps.pb0 = pb
         ps.pb_red = nothing
@@ -354,6 +354,20 @@ function postsolve!(sol::Solution{T}, sol_::Solution{T}, ps::PresolveData{T}) wh
     return nothing
 end
 
+"""
+Helper macro for running a presolve routine and returning if
+that routine was able to infer the model status (e.g. optimal).
+"""
+macro _return_if_inferred(expr)
+    @assert expr.head == :call
+    @assert length(expr.args) == 2
+    func = expr.args[1]
+    ps = expr.args[2]
+    return esc(quote
+        $func($ps)
+        $ps.status == NOT_INFERRED || return $ps.status
+    end)
+end
 
 """
     presolve(pb::ProblemData)
@@ -364,15 +378,12 @@ function presolve!(ps::PresolveData{T}) where {T}
 
     # Check bound consistency on all rows/columns
     st = bounds_consistency_checks!(ps)
-    ps.status == Trm_PrimalInfeasible && return ps.status
+    ps.status == PRIMAL_INFEASIBLE && return ps.status
 
     # I. Remove all fixed variables, empty rows and columns
     # remove_fixed_variables!(ps)
-    remove_empty_rows!(ps)
-    remove_empty_columns!(ps)
-
-    # TODO: check status for potential early return
-    ps.status == Trm_Unknown || return ps.status
+    @_return_if_inferred remove_empty_rows!(ps)
+    @_return_if_inferred remove_empty_columns!(ps)
 
     # Identify row singletons
     ps.row_singletons = [i for (i, nz) in enumerate(ps.nzrow) if ps.rowflag[i] && nz == 1]
@@ -380,46 +391,36 @@ function presolve!(ps::PresolveData{T}) where {T}
     # II. Passes
     ps.updated = true
     npasses = 0  # TODO: maximum number of passes
-    while ps.updated && ps.status == Trm_Unknown
+    while ps.updated && ps.status == NOT_INFERRED
         npasses += 1
         ps.updated = false
         @debug "Presolve pass $npasses" ps.nrow ps.ncol
 
-        bounds_consistency_checks!(ps)
-        ps.status == Trm_Unknown || return ps.status
-        remove_empty_columns!(ps)
-        ps.status == Trm_Unknown || return ps.status
+        @_return_if_inferred bounds_consistency_checks!(ps)
+        @_return_if_inferred remove_empty_columns!(ps)
 
 
         # Remove all fixed variables
         # TODO: remove empty variables as well
-        remove_row_singletons!(ps)
-        ps.status == Trm_Unknown || return ps.status
-        remove_fixed_variables!(ps)
-        ps.status == Trm_Unknown || return ps.status
+        @_return_if_inferred remove_row_singletons!(ps)
+        @_return_if_inferred remove_fixed_variables!(ps)
 
         # Remove forcing & dominated constraints
-        remove_row_singletons!(ps)
-        ps.status == Trm_Unknown || return ps.status
-        remove_forcing_rows!(ps)
-        ps.status == Trm_Unknown || return ps.status
+        @_return_if_inferred remove_row_singletons!(ps)
+        @_return_if_inferred remove_forcing_rows!(ps)
 
         # Remove free and implied free column singletons
-        remove_row_singletons!(ps)
-        ps.status == Trm_Unknown || return ps.status
-        remove_free_column_singletons!(ps)
-        ps.status == Trm_Unknown || return ps.status
+        @_return_if_inferred remove_row_singletons!(ps)
+        @_return_if_inferred remove_free_column_singletons!(ps)
 
         # TODO: remove column singleton with doubleton equation
 
         # Dual reductions
-        remove_row_singletons!(ps)
-        ps.status == Trm_Unknown || return ps.status
-        remove_dominated_columns!(ps)
-        ps.status == Trm_Unknown || return ps.status
+        @_return_if_inferred remove_row_singletons!(ps)
+        @_return_if_inferred remove_dominated_columns!(ps)
     end
 
-    remove_empty_columns!(ps)
+    @_return_if_inferred remove_empty_columns!(ps)
 
     @debug("Presolved problem info",
         ps.pb0.ncon, ps.nrow,
@@ -430,12 +431,12 @@ function presolve!(ps::PresolveData{T}) where {T}
     # TODO: check problem dimensions and declare optimality if problem is empty
     if ps.nrow == 0 && ps.ncol == 0
         # Problem is empty: declare optimality now
-        ps.status = Trm_Optimal
+        ps.status = OPTIMAL
 
         # Resize solution
         resize!(ps.solution, 0, 0)
-        ps.solution.primal_status = Sln_Optimal
-        ps.solution.dual_status = Sln_Optimal
+        ps.solution.primal_status = FEASIBLE_POINT
+        ps.solution.dual_status = FEASIBLE_POINT
         ps.solution.is_primal_ray = false
         ps.solution.is_dual_ray = false
         ps.solution.z_primal = ps.obj0
@@ -494,7 +495,7 @@ function bounds_consistency_checks!(ps::PresolveData{T}) where {T}
         if ps.rowflag[i] && l > u
             # Problem is primal infeasible
             @debug "Row $i is primal infeasible"
-            ps.status = Trm_PrimalInfeasible
+            ps.status = PRIMAL_INFEASIBLE
             ps.updated = true
 
             # Resize problem
@@ -507,8 +508,8 @@ function bounds_consistency_checks!(ps::PresolveData{T}) where {T}
             ps.solution.s_upper .= zero(T)
 
             # Farkas ray: y⁺_i = y⁻_i = 1 (any > 0 value works)
-            ps.solution.primal_status = Sln_Unknown
-            ps.solution.dual_status = Sln_InfeasibilityCertificate
+            ps.solution.primal_status = NO_SOLUTION
+            ps.solution.dual_status = INFEASIBILITY_CERTIFICATE
             ps.solution.is_primal_ray = false
             ps.solution.is_dual_ray = true
             ps.solution.z_primal = ps.solution.z_dual = T(Inf)
@@ -523,7 +524,7 @@ function bounds_consistency_checks!(ps::PresolveData{T}) where {T}
         if ps.colflag[j] && l > u
             # Primal is primal infeasible
             @debug "Column $j is primal infeasible"
-            ps.status = Trm_PrimalInfeasible
+            ps.status = PRIMAL_INFEASIBLE
             ps.updated = true
 
             # Resize problem
@@ -536,8 +537,8 @@ function bounds_consistency_checks!(ps::PresolveData{T}) where {T}
             ps.solution.s_upper .= zero(T)
 
             # Farkas ray: y⁺_i = y⁻_i = 1 (any > 0 value works)
-            ps.solution.primal_status = Sln_Unknown
-            ps.solution.dual_status = Sln_InfeasibilityCertificate
+            ps.solution.primal_status = NO_SOLUTION
+            ps.solution.dual_status = INFEASIBILITY_CERTIFICATE
             ps.solution.is_primal_ray = false
             ps.solution.is_dual_ray = true
             ps.solution.z_primal = ps.solution.z_dual = T(Inf)
@@ -584,7 +585,7 @@ If an empty column is created later, it is removed on the spot.
 function remove_empty_columns!(ps::PresolveData{T}) where {T}
     for j in 1:ps.pb0.nvar
         remove_empty_column!(ps, j)
-        ps.status == Trm_Unknown || break
+        ps.status == NOT_INFERRED || break
     end
     return nothing
 end
@@ -655,7 +656,7 @@ function remove_dominated_columns!(ps::PresolveData{T}) where {T}
         iszero(aij) && continue  # empty column
 
         # Strengthen dual bounds
-        #= 
+        #=
 
         =#
         cj = ps.obj[j]
@@ -693,7 +694,7 @@ function remove_dominated_columns!(ps::PresolveData{T}) where {T}
 
     for (j, flag) in enumerate(ps.colflag)
         remove_dominated_column!(ps, j)
-        ps.status == Trm_Unknown || break
+        ps.status == NOT_INFERRED || break
     end
     return nothing
 end

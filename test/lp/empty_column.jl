@@ -38,25 +38,25 @@ function emtpy_column_tests(T::Type)
             MathOptPresolve.remove_empty_column!(ps, 1)
 
             if c > 0 && !isfinite(l)
-                @test ps.status == MathOptPresolve.Trm_DualInfeasible
+                @test ps.status == MOP.DUAL_INFEASIBLE
                 @test ps.colflag[1]
                 @test ps.ncol == 1
 
                 sol = ps.solution
-                @test sol.primal_status == MathOptPresolve.Sln_InfeasibilityCertificate
+                @test sol.primal_status == MOP.INFEASIBILITY_CERTIFICATE
                 @test sol.m == 0 && sol.n == 1
                 @test sol.x[1] < 0
             elseif c < 0 && !isfinite(u)
-                @test ps.status == MathOptPresolve.Trm_DualInfeasible
+                @test ps.status == MOP.DUAL_INFEASIBLE
                 @test ps.colflag[1]
                 @test ps.ncol == 1
 
                 sol = ps.solution
-                @test sol.primal_status == MathOptPresolve.Sln_InfeasibilityCertificate
+                @test sol.primal_status == MOP.INFEASIBILITY_CERTIFICATE
                 @test sol.m == 0 && sol.n == 1
                 @test sol.x[1] > 0
             else
-                @test ps.status == MathOptPresolve.Trm_Unknown
+                @test ps.status == MOP.NOT_INFERRED
                 @test !ps.colflag[1]
                 @test ps.ncol == 0
                 @test ps.updated

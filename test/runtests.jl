@@ -3,6 +3,8 @@ using Test
 
 using SparseArrays
 
+const MOP = MathOptPresolve
+
 const COEFF_TYPES = [Float64, BigFloat]
 
 @testset "Problem data" begin

@@ -30,7 +30,7 @@ function remove_dominated_column!(ps::PresolveData{T}, j::Int; tol::T=100 * sqrt
         if !isfinite(lb)
             # Problem is dual infeasible
             @debug "Column $j is (lower) unbounded"
-            ps.status = Trm_DualInfeasible
+            ps.status = DUAL_INFEASIBLE
             ps.updated = true
 
             # Resize problem
@@ -43,8 +43,8 @@ function remove_dominated_column!(ps::PresolveData{T}, j::Int; tol::T=100 * sqrt
             ps.solution.s_upper .= zero(T)
 
             # Unbounded ray: xj = -1
-            ps.solution.primal_status = Sln_InfeasibilityCertificate
-            ps.solution.dual_status = Sln_Unknown
+            ps.solution.primal_status = INFEASIBILITY_CERTIFICATE
+            ps.solution.dual_status = NO_SOLUTION
             ps.solution.is_primal_ray = true
             ps.solution.is_dual_ray = false
             ps.solution.z_primal = ps.solution.z_dual = -T(Inf)
@@ -87,7 +87,7 @@ function remove_dominated_column!(ps::PresolveData{T}, j::Int; tol::T=100 * sqrt
             # Problem is unbounded
             @debug "Column $j is (upper) unbounded"
 
-            ps.status = Trm_DualInfeasible
+            ps.status = DUAL_INFEASIBLE
             ps.updated = true
 
             # Resize solution
@@ -100,8 +100,8 @@ function remove_dominated_column!(ps::PresolveData{T}, j::Int; tol::T=100 * sqrt
             ps.solution.s_upper .= zero(T)
 
             # Unbounded ray: xj = -1
-            ps.solution.primal_status = Sln_InfeasibilityCertificate
-            ps.solution.dual_status = Sln_Unknown
+            ps.solution.primal_status = INFEASIBILITY_CERTIFICATE
+            ps.solution.dual_status = NO_SOLUTION
             ps.solution.is_primal_ray = true
             ps.solution.is_dual_ray = false
             ps.solution.z_primal = ps.solution.z_dual = -T(Inf)
