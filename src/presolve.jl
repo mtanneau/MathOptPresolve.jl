@@ -358,13 +358,26 @@ that routine was able to infer the model status (e.g. optimal).
 """
 macro _return_if_inferred(expr)
     @assert expr.head == :call
-    @assert length(expr.args) == 2
-    func = expr.args[1]
-    ps = expr.args[2]
-    return esc(quote
-        $func($ps)
-        $ps.status == NOT_INFERRED || return $ps.status
-    end)
+    @assert length(expr.args) >= 2
+    if length(expr.args) == 2
+        func = expr.args[1]
+        ps = expr.args[2]
+        return esc(quote
+            $func($ps)
+            $ps.status == NOT_INFERRED || return $ps.status
+        end)
+    elseif length(expr.args) == 4
+        func = expr.args[1]
+        ps = expr.args[2]
+        rule = expr.args[3]
+        config = expr.args[4]
+        return esc(quote
+            $func($ps, $rule, $config)
+            $ps.status == NOT_INFERRED || return $ps.status
+        end)
+    else
+        error("_return_if_inferred needs 2 or 4 arguments")
+    end
 end
 
 """
@@ -373,6 +386,8 @@ end
 Perform pre-solve.
 """
 function presolve!(ps::PresolveData{T}) where {T}
+
+    config = PresolveOptions{T}()
 
     # Check bound consistency on all rows/columns
     st = bounds_consistency_checks!(ps)
@@ -401,7 +416,7 @@ function presolve!(ps::PresolveData{T}) where {T}
         # Remove all fixed variables
         # TODO: remove empty variables as well
         @_return_if_inferred remove_row_singletons!(ps)
-        @_return_if_inferred remove_fixed_variables!(ps)
+        @_return_if_inferred apply!(ps, FixedVariableRule(), config)
 
         # Remove forcing & dominated constraints
         @_return_if_inferred remove_row_singletons!(ps)
@@ -584,19 +599,6 @@ function remove_empty_columns!(ps::PresolveData{T}) where {T}
     for j in 1:ps.pb0.nvar
         remove_empty_column!(ps, j)
         ps.status == NOT_INFERRED || break
-    end
-    return nothing
-end
-
-"""
-    remove_fixed_variables!(ps::PresolveData)
-
-Remove all fixed variables.
-"""
-function remove_fixed_variables!(ps::PresolveData{T}) where {T}
-    for (j, flag) in enumerate(ps.colflag)
-        flag || continue
-        remove_fixed_variable!(ps, j)
     end
     return nothing
 end

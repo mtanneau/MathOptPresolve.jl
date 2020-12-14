@@ -41,23 +41,50 @@ struct FixedVariable{T} <: PresolveTransformation{T}
     col::Col{T}  # current column
 end
 
-function apply!(::FixedVariableRule, ps::PresolveData)
+function apply!(
+    ps::PresolveData{T},
+    ::FixedVariableRule,
+    config::PresolveOptions{T}
+) where {T}
 
     for (j, flag) in enumerate(ps.colflag)
-        remove_fixed_variable!(ps, j)
+        remove_fixed_variable!(ps, j, config.PrimalTolerance, config.IntegerTolerance)
+        ps.status == NOT_INFERRED || return ps.status
     end
 
-    return nothing
+    return ps.status
 end
 
-function remove_fixed_variable!(ps::PresolveData{T}, j::Int; ϵ::T=eps(T)) where {T}
+"""
+    remove_fixed_variable!(ps, j; ϵ, ϵᵢ) -> ModelStatus
+
+Remove variable `xⱼ` if fixed. See [`FixedVariableRule`](@ref)
+"""
+function remove_fixed_variable!(
+    ps::PresolveData{T},
+    j::Int,
+    ϵ::T=eps(T),
+    ϵᵢ::T=eps(T)
+) where {T}
     ps.colflag[j] || return nothing  # Column was already removed
 
-    # Check bounds
+    # Get current bounds
     lb, ub = ps.lcol[j], ps.ucol[j]
 
     if abs(ub - lb) <= ϵ
         @debug "Fix variable $j to $lb"
+
+        # Infeasibility check for integer variables
+        if is_integer(ps.pb0.var_types[j])
+            # Check if fixing to fractional value
+            f = min(lb - floor(lb), ceil(lb) - lb)
+
+            if f >= ϵᵢ
+                # MIP problem is infeasible
+                ps.status = PRIMAL_INFEASIBLE
+                return nothing
+            end
+        end
 
         col = ps.pb0.acols[j]
         cj = ps.obj[j]
@@ -77,6 +104,7 @@ function remove_fixed_variable!(ps::PresolveData{T}, j::Int; ϵ::T=eps(T)) where
         ps.obj0 += cj * lb
 
         # Update rows
+        # TODO: update list of row singletons and empty rows
         for (i, aij) in zip(col.nzind, col.nzval)
             ps.rowflag[i] || continue  # This row is no longer in the problem
             iszero(aij) && continue  # Skip if coefficient is zero

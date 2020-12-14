@@ -41,10 +41,51 @@ function test_fixed_variable_with_zeros(T::Type)
     return nothing
 end
 
+"""
+Fix an integer variable to a fractional value.
+"""
+function test_fix_integer_fractional(T::Type)
+
+    pb = MathOptPresolve.ProblemData{T}()
+
+    m, n = 0, 1
+    arows = Int[]
+    acols = Int[]
+    avals = T[]
+    A = sparse(arows, acols, avals, m, n)
+
+    # Binary variable
+    MathOptPresolve.load_problem!(pb, "Test",
+        true, zeros(T, n), zero(T),
+        A,
+        zeros(T, m), ones(T, m),
+        [T(1 // 2)], [T(1 // 2)]
+    )
+
+    pb.var_types[1] = MOP.CONTINUOUS
+    ps = MathOptPresolve.PresolveData(pb)
+    MathOptPresolve.remove_fixed_variable!(ps, 1)
+    @test ps.status == MOP.NOT_INFERRED
+    @test !ps.colflag[1]
+
+    pb.var_types[1] = MOP.BINARY
+    ps = MathOptPresolve.PresolveData(pb)
+    MathOptPresolve.remove_fixed_variable!(ps, 1)
+    @test ps.status == MOP.PRIMAL_INFEASIBLE
+
+    pb.var_types[1] = MOP.GENERAL_INTEGER
+    ps = MathOptPresolve.PresolveData(pb)
+    MathOptPresolve.remove_fixed_variable!(ps, 1)
+    @test ps.status == MOP.PRIMAL_INFEASIBLE
+
+    return nothing
+end
+
 @testset "Fixed variable" begin
     for T in COEFF_TYPES
         @testset "$T" begin
             test_fixed_variable_with_zeros(T)
+            test_fix_integer_fractional(T)
         end
     end
 end
