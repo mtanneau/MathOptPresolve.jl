@@ -1,28 +1,42 @@
-"""
+@doc raw"""
     FixedVariableRule
 
 Eliminate all fixed variables.
 
-A variable ``x_{j}`` is fixed if its current lower and upper bounds are equal.
-
 ## Presolve
 
-A row
+A variable ``x_{j}`` with lower and upper bounds ``l_{j}, u_{j}``
+is fixed to its lower bound if
 ```math
-l_{i} \\leq a_{i, j}x_{j} + \\sum_{k \\neq j} a_{i, k} x_{k} \\leq u_{i}
+| l_{j} - u_{j}| \leq ϵ,
+```
+where ``\epsilon`` is a prescribed tolerance.
+
+The variable is then eliminated from the problem as follows: ``\forall i,`` row ``i``
+```math
+l^{r}_{i} \leq a_{i, j}x_{j} + \sum_{k \neq j} a_{i, k} x_{k} \leq u^{r}_{i}
 ```
 is transformed into
 ```math
-l_{i} - a_{i, j} \\bar{x}_{j} \\leq \\sum_{k \\neq j} a_{i, k} x_{k} \\leq u_{i} - a_{i, j} \\bar{x}_{j}
+l^{r}_{i} - a_{i, j} l_{j} \leq \sum_{k \neq j} a_{i, k} x_{k} \leq u^{r}_{i} - a_{i, j} l_{j}.
 ```
+
+## Integer variables
+
+This rule applies to integer and continuous variables.
+
+The problem is declared infeasible
+if an integer variable ``x_{j}`` is fixed to a fractional value ``l_{j}``, i.e., if
+```math
+\min(l_{j} - ⌊ l_{j} ⌋, ⌈ l_{j} ⌉ - l_{j}) \geq \epsilon_{int},
+```
+where ``\epsilon_{int}`` is a prescribed tolerance.
 
 ## Postsolve
 
-
-
 For dual variables, first compute
 ```math
-z_{j} = c_{j} - \\sum_{i} a_{i, j} (y_{i}^{l} - y_{i}^{u}),
+z_{j} = c_{j} - \sum_{i} a_{i, j} (y_{i}^{l} - y_{i}^{u}),
 ```
 then recover ``z_{j}^{l} = z_{j}^{+}`` and ``z_{j}^{u} = z_{j}^{-}``.
 
@@ -30,7 +44,7 @@ then recover ``z_{j}^{l} = z_{j}^{+}`` and ``z_{j}^{u} = z_{j}^{-}``.
 ## Misc
 
 * This is a primal reduction.
-* If ``x_{j}`` is integer and fixed to a fractional value, then the problem in infeasible.
+* This rule does not create any fill-in.
 """
 struct FixedVariableRule <: AbstractPresolveRule end
 
