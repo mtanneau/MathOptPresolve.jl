@@ -12,7 +12,8 @@ is fixed to its lower bound if
 ```
 where ``\epsilon`` is a prescribed tolerance.
 
-The variable is then eliminated from the problem as follows: ``\forall i,`` row ``i``
+The variable is then eliminated from the problem as follows.
+Forall rows $i$,
 ```math
 l^{r}_{i} \leq a_{i, j}x_{j} + \sum_{k \neq j} a_{i, k} x_{k} \leq u^{r}_{i}
 ```
@@ -21,12 +22,10 @@ is transformed into
 l^{r}_{i} - a_{i, j} l_{j} \leq \sum_{k \neq j} a_{i, k} x_{k} \leq u^{r}_{i} - a_{i, j} l_{j}.
 ```
 
-## Integer variables
+## Integer infeasibility
 
-This rule applies to integer and continuous variables.
-
-The problem is declared infeasible
-if an integer variable ``x_{j}`` is fixed to a fractional value ``l_{j}``, i.e., if
+The problem is infeasible if an integer variable is fixed to a fractional value, namely,
+if the fixed variable ``x_{j}`` is integer (or implied integer) and
 ```math
 \min(l_{j} - ⌊ l_{j} ⌋, ⌈ l_{j} ⌉ - l_{j}) \geq \epsilon_{int},
 ```
@@ -44,7 +43,8 @@ then recover ``z_{j}^{l} = z_{j}^{+}`` and ``z_{j}^{u} = z_{j}^{-}``.
 ## Misc
 
 * This is a primal reduction.
-* This rule does not create any fill-in.
+* This reduction is non-destructive.
+* This reduction does not create any fill-in.
 """
 struct FixedVariableRule <: AbstractPresolveRule end
 
@@ -70,15 +70,21 @@ function apply!(
 end
 
 """
-    remove_fixed_variable!(ps, j; ϵ, ϵᵢ) -> ModelStatus
+    remove_fixed_variable!(ps, j, ϵ, ϵ_int) -> ModelStatus
 
-Remove variable `xⱼ` if fixed. See [`FixedVariableRule`](@ref)
+Remove variable `xⱼ` if fixed. See [`FixedVariableRule`](@ref).
+
+# Arguments
+* `ps::PresolveData{T}`: presolve data structure
+* `j::Int`: the index of the variable
+* `ϵ::T=eps(T)`: feasibility tolerance
+* `ϵ_int::T=eps(T)`: integrality tolerance
 """
 function remove_fixed_variable!(
     ps::PresolveData{T},
     j::Int,
     ϵ::T=eps(T),
-    ϵᵢ::T=eps(T)
+    ϵ_int::T=eps(T)
 ) where {T}
     ps.colflag[j] || return nothing  # Column was already removed
 
@@ -92,8 +98,7 @@ function remove_fixed_variable!(
         if is_integer(ps.pb0.var_types[j])
             # Check if fixing to fractional value
             f = min(lb - floor(lb), ceil(lb) - lb)
-
-            if f >= ϵᵢ
+            if f >= ϵ_int
                 # MIP problem is infeasible
                 ps.status = PRIMAL_INFEASIBLE
                 return nothing
