@@ -18,6 +18,9 @@ end
     @testset "empty row" begin
         include("lp/empty_row.jl")
     end
+    @testset "ensure integer bounds" begin
+        include("lp/ensure_integer_bounds.jl")
+    end
     @testset "fixed variable" begin
         include("lp/fixed_variable.jl")
     end

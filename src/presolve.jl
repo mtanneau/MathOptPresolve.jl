@@ -303,6 +303,7 @@ end
 
 include("lp/empty_row.jl")
 include("lp/empty_column.jl")
+include("lp/ensure_integer_bounds.jl")
 include("lp/fixed_variable.jl")
 include("lp/row_singleton.jl")
 include("lp/forcing_row.jl")
@@ -384,7 +385,7 @@ Perform pre-solve.
 """
 function presolve!(ps::PresolveData{T}) where {T}
 
-    # Ensure the bounds of integer variables are integers
+    # Ensure the bounds of integer variables are integers.
     ensure_integer_bounds!(ps)
 
     # Check bound consistency on all rows/columns
