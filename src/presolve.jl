@@ -67,6 +67,9 @@ mutable struct PresolveData{T}
     ls::Vector{T}
     us::Vector{T}
 
+    # Variable types
+    var_types::Vector{VariableType}
+
     # Scaling
     row_scaling::Vector{T}
     col_scaling::Vector{T}
@@ -144,6 +147,9 @@ mutable struct PresolveData{T}
             ps.ls[j] = (uv == T(Inf)) ? zero(T) : T(-Inf)
             ps.us[j] = (lv == T(-Inf)) ? zero(T) : T(Inf)
         end
+
+        # Variable types
+        ps.var_types = pb.var_types
 
         # Scalings
         ps.row_scaling = ones(T, ps.nrow)
@@ -239,6 +245,8 @@ function extract_reduced_problem!(ps::PresolveData{T}) where {T}
 
         # Set new column
         pb.acols[jnew] = Col{T}(cind, cval)
+
+        # TODO: Could we just use ps.var_types[jold] instead?
         pb.var_types[jnew] = ps.pb0.var_types[jold]
     end
 
@@ -375,6 +383,9 @@ end
 Perform pre-solve.
 """
 function presolve!(ps::PresolveData{T}) where {T}
+
+    # Ensure the bounds of integer variables are integers
+    ensure_integer_bounds!(ps)
 
     # Check bound consistency on all rows/columns
     st = bounds_consistency_checks!(ps)
@@ -586,6 +597,21 @@ function remove_empty_columns!(ps::PresolveData{T}) where {T}
     for j in 1:ps.pb0.nvar
         remove_empty_column!(ps, j)
         ps.status == NOT_INFERRED || break
+    end
+    return nothing
+end
+
+"""
+    ensure_integer_bounds!(ps::PresolveData)
+
+Ensure all columns with integer variables having integer bounds.
+
+Called once at the very beginning of the presolve procedure.
+"""
+
+function ensure_integer_bounds!(ps::PresolveData{T}) where {T}
+    for j in 1:ps.pb0.nvar
+        ensure_integer_bounds!(ps, j)
     end
     return nothing
 end
