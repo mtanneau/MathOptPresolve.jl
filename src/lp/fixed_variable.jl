@@ -31,6 +31,9 @@ if the fixed variable ``x_{j}`` is integer (or implied integer) and
 ```
 where ``\epsilon_{int}`` is a prescribed tolerance.
 
+If ``x_{j}`` is binary, then we also check whether ``l_{j} \in \{0, 1\}`` --
+up to the prescribed tolerance ``\epsilon_{int}``, otherwise the problem is infeasible.
+
 ## Postsolve
 
 For dual variables, first compute
@@ -95,10 +98,13 @@ function remove_fixed_variable!(
         @debug "Fix variable $j to $lb"
 
         # Infeasibility check for integer variables
-        if is_integer(ps.pb0.var_types[j])
+        vt = ps.pb0.var_types[j]
+        if is_integer(vt)
             # Check if fixing to fractional value
             f = min(lb - floor(lb), ceil(lb) - lb)
-            if f >= ϵ_int
+            if f >= ϵ_int || (vt == BINARY
+                && ((lb <= -ϵ_int) || (lb >= 1 + ϵ_int))
+            )
                 # MIP problem is infeasible
                 ps.status = PRIMAL_INFEASIBLE
                 return nothing

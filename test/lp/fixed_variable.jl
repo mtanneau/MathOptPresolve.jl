@@ -42,9 +42,11 @@ function test_fixed_variable_with_zeros(T::Type)
 end
 
 """
-Fix an integer variable to a fractional value.
+    test_fix_integer_infeasibility(T)
+
+Test integer infeasibility when fixing integer variables.
 """
-function test_fix_integer_fractional(T::Type)
+function test_fix_integer_infeasibility(T::Type)
 
     pb = MathOptPresolve.ProblemData{T}()
 
@@ -54,29 +56,59 @@ function test_fix_integer_fractional(T::Type)
     avals = T[]
     A = sparse(arows, acols, avals, m, n)
 
-    # Binary variable
     MathOptPresolve.load_problem!(pb, "Test",
         true, zeros(T, n), zero(T),
         A,
         zeros(T, m), ones(T, m),
-        [T(1 // 2)], [T(1 // 2)]
+        zeros(T, n), zeros(T, n)
     )
 
+    # Single variable with bounds ¹/₂ ≤ x ≤ ¹/₂
+    pb.lvar[1] = T(1 // 2)
+    pb.uvar[1] = T(1 // 2)
+
+    # x is continuous --> OK
     pb.var_types[1] = MOP.CONTINUOUS
     ps = MathOptPresolve.PresolveData(pb)
     MathOptPresolve.remove_fixed_variable!(ps, 1)
     @test ps.status == MOP.NOT_INFERRED
     @test !ps.colflag[1]
 
+    # x in binary --> infeasible
     pb.var_types[1] = MOP.BINARY
     ps = MathOptPresolve.PresolveData(pb)
     MathOptPresolve.remove_fixed_variable!(ps, 1)
     @test ps.status == MOP.PRIMAL_INFEASIBLE
 
+    # x is integer --> infeasible
     pb.var_types[1] = MOP.GENERAL_INTEGER
     ps = MathOptPresolve.PresolveData(pb)
     MathOptPresolve.remove_fixed_variable!(ps, 1)
     @test ps.status == MOP.PRIMAL_INFEASIBLE
+
+
+    # Binary variable with integer bounds
+    for x_ in [T(-1), T(0), T(1), T(2)]
+        pb.lvar[1] = x_
+        pb.uvar[1] = x_
+
+        # x is integer --> OK
+        pb.var_types[1] = MOP.GENERAL_INTEGER
+        ps = MathOptPresolve.PresolveData(pb)
+        MathOptPresolve.remove_fixed_variable!(ps, 1)
+        @test ps.status == MOP.NOT_INFERRED
+        @test !ps.colflag[1]
+
+        # x in binary --> infeasible
+        pb.var_types[1] = MOP.BINARY
+        ps = MathOptPresolve.PresolveData(pb)
+        MathOptPresolve.remove_fixed_variable!(ps, 1)
+        if x_ in [T(0), T(1)]
+            @test ps.status == MOP.NOT_INFERRED
+        else
+            @test ps.status == MOP.PRIMAL_INFEASIBLE
+        end
+    end
 
     return nothing
 end
@@ -85,7 +117,7 @@ end
     for T in COEFF_TYPES
         @testset "$T" begin
             test_fixed_variable_with_zeros(T)
-            test_fix_integer_fractional(T)
+            test_fix_integer_infeasibility(T)
         end
     end
 end
