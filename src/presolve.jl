@@ -149,7 +149,7 @@ mutable struct PresolveData{T}
         end
 
         # Variable types
-        ps.var_types = pb.var_types
+        ps.var_types = copy(pb.var_types)
 
         # Scalings
         ps.row_scaling = ones(T, ps.nrow)
@@ -246,7 +246,6 @@ function extract_reduced_problem!(ps::PresolveData{T}) where {T}
         # Set new column
         pb.acols[jnew] = Col{T}(cind, cval)
 
-        # TODO: Could we just use ps.var_types[jold] instead?
         pb.var_types[jnew] = ps.pb0.var_types[jold]
     end
 
@@ -303,12 +302,13 @@ end
 
 include("lp/empty_row.jl")
 include("lp/empty_column.jl")
-include("lp/ensure_integer_bounds.jl")
 include("lp/fixed_variable.jl")
 include("lp/row_singleton.jl")
 include("lp/forcing_row.jl")
 include("lp/free_column_singleton.jl")
 include("lp/dominated_column.jl")
+
+include("mip/ensure_integer_bounds.jl")
 
 
 """
@@ -386,7 +386,7 @@ Perform pre-solve.
 function presolve!(ps::PresolveData{T}) where {T}
 
     # Ensure the bounds of integer variables are integers.
-    ensure_integer_bounds!(ps)
+    @_return_if_inferred ensure_integer_bounds!(ps)
 
     # Check bound consistency on all rows/columns
     st = bounds_consistency_checks!(ps)
@@ -407,7 +407,7 @@ function presolve!(ps::PresolveData{T}) where {T}
         npasses += 1
         ps.updated = false
         @debug "Presolve pass $npasses" ps.nrow ps.ncol
-
+        @_return_if_inferred ensure_integer_bounds!(ps)
         @_return_if_inferred bounds_consistency_checks!(ps)
         @_return_if_inferred remove_empty_columns!(ps)
 
@@ -611,6 +611,9 @@ Called once at the very beginning of the presolve procedure.
 """
 
 function ensure_integer_bounds!(ps::PresolveData{T}) where {T}
+    # The problem is LP.
+    !ps.pb0.is_continuous || return nothing
+
     for j in 1:ps.pb0.nvar
         ensure_integer_bounds!(ps, j)
     end
