@@ -246,7 +246,7 @@ function extract_reduced_problem!(ps::PresolveData{T}) where {T}
         # Set new column
         pb.acols[jnew] = Col{T}(cind, cval)
 
-        pb.var_types[jnew] = ps.pb0.var_types[jold]
+        pb.var_types[jnew] = ps.var_types[jold]
     end
 
     # Scaling
@@ -308,7 +308,7 @@ include("lp/forcing_row.jl")
 include("lp/free_column_singleton.jl")
 include("lp/dominated_column.jl")
 
-include("mip/ensure_integer_bounds.jl")
+include("mip/round_integer_bounds.jl")
 
 
 """
@@ -385,8 +385,8 @@ Perform pre-solve.
 """
 function presolve!(ps::PresolveData{T}) where {T}
 
-    # Ensure the bounds of integer variables are integers.
-    @_return_if_inferred ensure_integer_bounds!(ps)
+    # Round the bounds of integer variables are integers.
+    round_integer_bounds!(ps)
 
     # Check bound consistency on all rows/columns
     st = bounds_consistency_checks!(ps)
@@ -407,7 +407,7 @@ function presolve!(ps::PresolveData{T}) where {T}
         npasses += 1
         ps.updated = false
         @debug "Presolve pass $npasses" ps.nrow ps.ncol
-        @_return_if_inferred ensure_integer_bounds!(ps)
+        round_integer_bounds!(ps)
         @_return_if_inferred bounds_consistency_checks!(ps)
         @_return_if_inferred remove_empty_columns!(ps)
 
@@ -603,19 +603,19 @@ function remove_empty_columns!(ps::PresolveData{T}) where {T}
 end
 
 """
-    ensure_integer_bounds!(ps::PresolveData)
+    round_integer_bounds!(ps::PresolveData)
 
 Ensure all columns with integer variables having integer bounds.
 
 Called once at the very beginning of the presolve procedure.
 """
 
-function ensure_integer_bounds!(ps::PresolveData{T}) where {T}
+function round_integer_bounds!(ps::PresolveData{T}) where {T}
     # The problem is LP.
     !ps.pb0.is_continuous || return nothing
 
     for j in 1:ps.pb0.nvar
-        ensure_integer_bounds!(ps, j)
+        round_integer_bounds!(ps, j)
     end
     return nothing
 end
