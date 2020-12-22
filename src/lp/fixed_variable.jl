@@ -1,39 +1,38 @@
 @doc raw"""
     FixSingleVariable <: AbstractRule
 
-Eliminate a single variable ``x_{j}`` if fixed.
+Eliminate a single variable $x_{j}$ if its lower and upper bounds are equal.
+
+Variable $x_{j}$ with lower and upper bounds $l_{j}, u_{j}$ is fixed to its lower bound if
+```math
+| l_{j} - u_{j}| ≤ ϵ,
+```
+where $ϵ$ is a prescribed tolerance.
 
 ## Presolve
 
-A variable ``x_{j}`` with lower and upper bounds ``l_{j}, u_{j}``
-is fixed to its lower bound if
-```math
-| l_{j} - u_{j}| \leq ϵ,
-```
-where ``\epsilon`` is a prescribed tolerance.
-
-The variable is then eliminated from the problem as follows.
 Forall rows $i$,
 ```math
-l^{r}_{i} \leq a_{i, j}x_{j} + \sum_{k \neq j} a_{i, k} x_{k} \leq u^{r}_{i}
+l^{r}_{i} ≤ a_{i, j}x_{j} + \sum_{k \neq j} a_{i, k} x_{k} ≤ u^{r}_{i}
 ```
 is transformed into
 ```math
-l^{r}_{i} - a_{i, j} l_{j} \leq \sum_{k \neq j} a_{i, k} x_{k} \leq u^{r}_{i} - a_{i, j} l_{j}.
+l^{r}_{i} - a_{i, j} l_{j} ≤ \sum_{k \neq j} a_{i, k} x_{k} ≤ u^{r}_{i} - a_{i, j} l_{j}.
 ```
-The objective constant is updated to $c_{0} + c_{j} l_{j}$.
+The objective constant $c_{0}$ is updated to $c_{0} + c_{j} l_{j}$.
 
-### Integer infeasibility
+## Infeasibility checks
 
-The problem is infeasible if an integer variable is fixed to a fractional value, namely,
-if the fixed variable ``x_{j}`` is integer (or implied integer) and
-```math
-\min(l_{j} - ⌊ l_{j} ⌋, ⌈ l_{j} ⌉ - l_{j}) \geq \epsilon_{int},
-```
-where ``\epsilon_{int}`` is a prescribed tolerance.
+The problem is infeasible if a variable is fixed to a value outside its domain.
 
-If ``x_{j}`` is binary, then we also check whether ``l_{j} \in \{0, 1\}`` --
-up to the prescribed tolerance ``\epsilon_{int}``, otherwise the problem is infeasible.
+Given an integer feasibility tolerance $ϵ_{int} ≥ 0$,
+infeasibility is declared in the following cases:
+
+* Variable $x_{j}$ is integer (or implied integer) and $l_{j}$ is fractional, i.e.,
+    $\min(l_{j} - ⌊ l_{j} ⌋, ⌈ l_{j} ⌉ - l_{j}) \geq ϵ_{int}$.
+
+* Variable $x_{j}$ is binary, and
+    $l_{j} \notin [-ϵ_{int}, ϵ_{int}] \cup [1-ϵ_{int}, 1+ϵ_{int}]$.
 
 ## Postsolve
 
@@ -41,7 +40,7 @@ For dual variables, first compute
 ```math
 z_{j} = c_{j} - \sum_{i} a_{i, j} (y_{i}^{l} - y_{i}^{u}),
 ```
-then recover ``z_{j}^{l} = z_{j}^{+}`` and ``z_{j}^{u} = z_{j}^{-}``.
+then recover $z_{j}^{l} = z_{j}^{+}$ and $z_{j}^{u} = z_{j}^{-}$.
 
 
 ## Misc
@@ -57,7 +56,7 @@ end
 @doc raw"""
     FixedVariable{T} <: AbstractReduction{T}
 
-Variable ``x_{j}`` has been fixed
+Variable $x_{j}$ has been fixed
 
 See [`FixSingleVariable`](@ref)
 
