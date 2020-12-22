@@ -1,4 +1,4 @@
-struct FreeColumnSingleton{T} <: PresolveTransformation{T}
+struct FreeColumnSingleton{T} <: AbstractReduction{T}
     i::Int  # Row index
     j::Int  # Column index
     l::T  # Row lower bound

@@ -5,5 +5,5 @@ CurrentModule = MathOptPresolve
 # Primal reductions
 
 ```@docs
-FixedVariableRule
+FixSingleVariable
 ```
