@@ -1,4 +1,4 @@
-struct EmptyColumn{T} <: PresolveTransformation{T}
+struct EmptyColumn{T} <: AbstractReduction{T}
     j::Int  # variable index
     x::T  # Variable value
     s::T  # Reduced cost

@@ -1,27 +1,37 @@
-Base.@kwdef mutable struct PresolveOptions{T}
-    Level::Int = 1  # Presolve level
-end
+"""
+    AbstractReduction{T}
+
+Abstract type for presolve transformations.
+"""
+abstract type AbstractReduction{T} end
+
+abstract type AbstractRule end
 
 """
-    PresolveTransformation{T}
+    apply!(ps, rule, config) -> Nothing
 
-Abstract type for pre-solve transformations.
+Apply rule `rule`.
+
+# Arguments
+* `ps::PresolveData{T}`
+* `rule::AbstractRule`
+* `config::PresolveOptions{T}`
 """
-abstract type PresolveTransformation{T} end
+function apply! end
 
 """
     PresolveData{T}
 
 Stores information about an LP in the form
 ```
-    min     c'x + c0
+    min     cᵀx + c₀
     s.t.    lr ⩽ Ax ⩽ ur
             lc ⩽  x ⩽ uc
 ```
 whose dual writes
 ```
-    max     lr'y⁺ - ur'y⁻ + lc's⁺ - uc's⁻
-    s.t.     A'y⁺ -  A'y⁻ +    s⁺ -    s⁻ = c
+    max     lrᵀy⁺ - urᵀy⁻ + lcᵀs⁺ - ucᵀs⁻
+    s.t.     Aᵀy⁺ -  Aᵀy⁻ +    s⁺ -    s⁻ = c
                y⁺,     y⁻,     s⁺,     s⁻ ⩾ 0
 ```
 """
@@ -87,7 +97,7 @@ mutable struct PresolveData{T}
     free_col_singletons::Vector{Int}  # (implied) free column singletons
 
     # TODO: set of transformations for pre-post crush
-    ops::Vector{PresolveTransformation{T}}
+    ops::Vector{AbstractReduction{T}}
 
     function PresolveData(pb::ProblemData{T}) where {T}
         ps = new{T}()
@@ -165,7 +175,7 @@ mutable struct PresolveData{T}
         ps.row_singletons = Int[]
         ps.free_col_singletons = Int[]
 
-        ps.ops = PresolveTransformation{T}[]
+        ps.ops = AbstractReduction{T}[]
 
         return ps
     end
@@ -296,7 +306,7 @@ function extract_reduced_problem!(ps::PresolveData{T}) where {T}
     ps.col_scaling = cscale
 
     # Done
-ps.pb_red = pb
+    ps.pb_red = pb
     return nothing
 end
 
@@ -335,7 +345,7 @@ function postsolve!(sol::Solution{T}, sol_::Solution{T}, ps::PresolveData{T}) wh
     sol.z_dual = sol_.z_dual
 
     # Extract and un-scale inner solution components
-    # TODO: create a PresolveTransformation for scaling
+    # TODO: create a AbstractReduction for scaling
     for (j_, j) in enumerate(ps.old_var_idx)
         sol.x[j] = sol_.x[j_] / ps.col_scaling[j_]
         sol.s_lower[j] = sol_.s_lower[j_] * ps.col_scaling[j_]
@@ -369,13 +379,26 @@ that routine was able to infer the model status (e.g. optimal).
 """
 macro _return_if_inferred(expr)
     @assert expr.head == :call
-    @assert length(expr.args) == 2
-    func = expr.args[1]
-    ps = expr.args[2]
-    return esc(quote
-        $func($ps)
-        $ps.status == NOT_INFERRED || return $ps.status
-    end)
+    @assert length(expr.args) >= 2
+    if length(expr.args) == 2
+        func = expr.args[1]
+        ps = expr.args[2]
+        return esc(quote
+            $func($ps)
+            $ps.status == NOT_INFERRED || return $ps.status
+        end)
+    elseif length(expr.args) == 4
+        func = expr.args[1]
+        ps = expr.args[2]
+        rule = expr.args[3]
+        config = expr.args[4]
+        return esc(quote
+            $func($ps, $rule, $config)
+            $ps.status == NOT_INFERRED || return $ps.status
+        end)
+    else
+        error("_return_if_inferred needs 2 or 4 arguments")
+    end
 end
 
 """
@@ -385,15 +408,19 @@ Perform pre-solve.
 """
 function presolve!(ps::PresolveData{T}) where {T}
 
+
     # Round the bounds of integer variables are integers.
     round_integer_bounds!(ps)
+
+    config = PresolveOptions{T}()
+
 
     # Check bound consistency on all rows/columns
     st = bounds_consistency_checks!(ps)
     ps.status == PRIMAL_INFEASIBLE && return ps.status
 
     # I. Remove all fixed variables, empty rows and columns
-    # remove_fixed_variables!(ps)
+    @_return_if_inferred apply!(ps, RemoveFixedVariables(), config)
     @_return_if_inferred remove_empty_rows!(ps)
     @_return_if_inferred remove_empty_columns!(ps)
 
@@ -415,7 +442,7 @@ function presolve!(ps::PresolveData{T}) where {T}
         # Remove all fixed variables
         # TODO: remove empty variables as well
         @_return_if_inferred remove_row_singletons!(ps)
-        @_return_if_inferred remove_fixed_variables!(ps)
+        @_return_if_inferred apply!(ps, RemoveFixedVariables(), config)
 
         # Remove forcing & dominated constraints
         @_return_if_inferred remove_row_singletons!(ps)
@@ -601,6 +628,7 @@ function remove_empty_columns!(ps::PresolveData{T}) where {T}
     end
     return nothing
 end
+
 
 """
     round_integer_bounds!(ps::PresolveData)
