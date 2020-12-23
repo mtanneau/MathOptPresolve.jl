@@ -1,7 +1,7 @@
 # TODO: this is redundant with forcing constraint checks
 #   => an empty row is automatically redundant or infeasible
 
-struct EmptyRow{T} <: PresolveTransformation{T}
+struct EmptyRow{T} <: AbstractReduction{T}
     i::Int  # row index
     y::T  # dual multiplier
 end

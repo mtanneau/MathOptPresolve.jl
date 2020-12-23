@@ -10,6 +10,8 @@ const Col = RowOrCol
 
 @enum VariableType CONTINUOUS BINARY GENERAL_INTEGER
 
+is_integer(vt::VariableType) = (vt == BINARY || vt == GENERAL_INTEGER)
+
 """
     ProblemData{T}
 

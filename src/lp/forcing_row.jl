@@ -1,4 +1,4 @@
-struct ForcingRow{T} <: PresolveTransformation{T}
+struct ForcingRow{T} <: AbstractReduction{T}
     i::Int  # Row index
     at_lower::Bool  # Whether row is forced to its lower bound (false means upper)
     row::Row{T}  # Row
@@ -7,7 +7,7 @@ struct ForcingRow{T} <: PresolveTransformation{T}
     cs::Vector{T}  # Objective coeffs of variables in forcing row
 end
 
-struct DominatedRow{T} <: PresolveTransformation{T}
+struct DominatedRow{T} <: AbstractReduction{T}
     i::Int  # Row index
 end
 
