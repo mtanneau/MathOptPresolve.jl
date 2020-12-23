@@ -22,3 +22,9 @@ end
         include("lp/fixed_variable.jl")
     end
 end
+
+@testset "MIP" begin
+    @testset "round integer bounds" begin
+        include("mip/round_integer_bounds.jl")
+    end
+end

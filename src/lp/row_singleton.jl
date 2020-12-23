@@ -1,4 +1,4 @@
-struct RowSingleton{T} <: PresolveTransformation{T}
+struct RowSingleton{T} <: AbstractReduction{T}
     i::Int  # Row index
     j::Int  # Column index
     aij::T  # Row coefficient
@@ -67,10 +67,11 @@ function remove_row_singleton!(ps::PresolveData{T}, i::Int) where {T}
     ps.nzcol[j] -= 1
 
     # Check if we created a fixed/empty column
-    if ps.lcol[j] == ps.ucol[j]
-        remove_fixed_variable!(ps, j)
-        return nothing
-    end
+    # TODO: re-enable this with apply!-based syntax
+    # if ps.lcol[j] == ps.ucol[j]
+    #     remove_fixed_variable!(ps, j)
+    #     return nothing
+    # end
     if ps.nzcol[j] == 0
         # TODO: remove empty column
     elseif ps.nzcol[j] == 1

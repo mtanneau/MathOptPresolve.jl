@@ -1,4 +1,4 @@
-struct DominatedColumn{T} <: PresolveTransformation{T}
+struct DominatedColumn{T} <: AbstractReduction{T}
     j::Int
     x::T  # Primal value
     cj::T  # Objective

@@ -4,9 +4,9 @@ CurrentModule = MathOptPresolve
 
 # MathOptPresolve
 
-```@index
-```
+!!! warning
+    The documention is under construction,
+    and should not be considered complete at this time.
 
-```@autodocs
-Modules = [MathOptPresolve]
+```@index
 ```
