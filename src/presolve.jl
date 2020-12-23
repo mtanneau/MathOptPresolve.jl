@@ -409,11 +409,10 @@ Perform pre-solve.
 function presolve!(ps::PresolveData{T}) where {T}
 
 
-    # Round the bounds of integer variables are integers.
-    round_integer_bounds!(ps)
-
     config = PresolveOptions{T}()
 
+    # Round the bounds of integer variables are integers.
+    round_integer_bounds!(ps)
 
     # Check bound consistency on all rows/columns
     st = bounds_consistency_checks!(ps)
@@ -640,7 +639,7 @@ Called once at the very beginning of the presolve procedure.
 
 function round_integer_bounds!(ps::PresolveData{T}) where {T}
     # The problem is LP.
-    !ps.pb0.is_continuous || return nothing
+    ps.pb0.is_continuous && return nothing
 
     for j in 1:ps.pb0.nvar
         round_integer_bounds!(ps, j)

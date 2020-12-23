@@ -9,7 +9,7 @@ function round_integer_bounds_tests(T::Type)
                 MOP.eps(T)/2 ⩽ w ⩽ 1 - MOP.eps(T)/2
                 x is integer, z, w are binary  =#
     C = T[1, 1, 1, 1]
-    lc = T[- 3 // 2, -5 // 2, -13 // 10, MOP.eps(T)/2]
+    lc = T[-3 // 2, -5 // 2, -13 // 10, MOP.eps(T)/2]
     uc = T[8 // 5, 21 // 10, 3, 1 - MOP.eps(T)/2]
     lr = T[-10]
     ur = T[10]
@@ -51,7 +51,6 @@ function round_integer_bounds_tests_2(T::Type)
     lr = Vector{T}([])
     ur = Vector{T}([])
     varTypes = [MOP.GENERAL_INTEGER, MOP.GENERAL_INTEGER]
-    println("Here")
     pb = MOP.ProblemData{T}()
 
     MOP.load_problem!(pb, "Test",
