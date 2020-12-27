@@ -4,7 +4,7 @@
 Eliminate a single row if it is empty, i.e. all variable coefficients are zero.
 In particular, consider row $i$ given as
 ```math
-l^{r}_{i} ≤ a_{i, j}x_{j} + \sum_{k \neq j} a_{i, k} x_{k} ≤ u^{r}_{i}.
+l^{r}_{i} ≤ \sum_{j} a_{i, j} x_{j} ≤ u^{r}_{i}.
 ```
 We eliminate row $i$ if, for each variable index $j$,
 ``math
