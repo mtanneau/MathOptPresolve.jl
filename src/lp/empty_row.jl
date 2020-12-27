@@ -1,27 +1,41 @@
 @doc raw"""
     RemoveEmptyRow <: AbstractRule
 
-Eliminate a single row if it is empty, i.e. all variable coefficients are
-zero. In particular, we eliminate row $i$ if, for each variable index $j$,
+Eliminate a single row if it is empty, i.e. all variable coefficients are zero.
+In particular, consider row $i$ given as
 ```math
+l^{r}_{i} ≤ a_{i, j}x_{j} + \sum_{k \neq j} a_{i, k} x_{k} ≤ u^{r}_{i}.
+```
+We eliminate row $i$ if, for each variable index $j$,
+``math
 | a_{i,j} | ≤ ϵ
 ```
 for prescribed tolerance $ϵ$.
 
 ## Presolve
 
-If row $i$ is empty, the corresponding constraint is completely removed from the problem.
+If row $i$ is empty, the corresponding constraint is completely removed from
+the problem.
 
 ## Infeasibility checks
-The problem is infeasible if row $i$ is empty and either 1) its lower bound is positive ($l_{i} > ϵ$) or 2) its upper bound is negative ($u_{i} < -ϵ$).
 
-# Postsolve
+The problem is infeasible if row $i$ is empty and either 1) its
+lower bound is positive ($l^{r}_{i} > ϵ$) or 2) its upper bound is
+negative ($u^{r}_{i} < -ϵ$). In these two cases, a Farkas infeasibility
+certificate is given by setting $y$ to all zeros except for either
+$y\_lower_{i} = 1$ or $y\_upper_{i} = 1$, respectively.
+
+## Postsolve
+
+Sets the dual variable $y\_lower_{i} = \max\{0,y\}$ for the greater-than
+constraint and the dual variable $y\_upper_{i} = \max\{0,-y\}$ for the
+less-than constraint.
 
 ## Misc
 
 * This is a primal reduction.
 * This reduction is non-destructive.
-* THis reduction does not create any fill-in.
+* This reduction does not create any fill-in.
 """
 struct RemoveEmptyRow <: AbstractRule
     i::Int
