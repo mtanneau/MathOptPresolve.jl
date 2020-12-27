@@ -1,13 +1,49 @@
-# TODO: this is redundant with forcing constraint checks
-#   => an empty row is automatically redundant or infeasible
+@doc raw"""
+    RemoveEmptyRow <: AbstractRule
 
+Eliminate a single row if it is empty, i.e. all variable coefficients are
+zero. In particular, we eliminate row $i$ if, for each variable index $j$,
+```math
+| a_{i,j} | ≤ ϵ
+```
+for prescribed tolerance $ϵ$.
+
+## Presolve
+
+If row $i$ is empty, the corresponding constraint is completely removed from the problem.
+
+## Infeasibility checks
+The problem is infeasible if row $i$ is empty and either 1) its lower bound is positive ($l_{i} > ϵ$) or 2) its upper bound is negative ($u_{i} < -ϵ$).
+
+# Postsolve
+
+## Misc
+
+* This is a primal reduction.
+* This reduction is non-destructive.
+* THis reduction does not create any fill-in.
+"""
+struct RemoveEmptyRow <: AbstractRule
+    i::Int
+end
+
+@doc raw"""
+    EmptyRow{T} <: AbstractReduction{T}
+
+Row $i$ is empty (all variable coefficients are zero).
+"""
 struct EmptyRow{T} <: AbstractReduction{T}
     i::Int  # row index
     y::T  # dual multiplier
 end
 
-function remove_empty_row!(ps::PresolveData{T}, i::Int) where {T}
-    ps.pb0.is_continuous || error("Empty row routine currently only supported for LPs.")
+function apply!(
+    ps::PresolveData{T},
+    r::RemoveEmptyRow,
+    config::PresolveOptions{T}
+) where {T}
+    i = r.i
+    ϵ = config.PrimalTolerance
 
     # Sanity checks
     (ps.rowflag[i] && ps.nzrow[i] == 0) || return nothing
@@ -15,7 +51,7 @@ function remove_empty_row!(ps::PresolveData{T}, i::Int) where {T}
     # Check bounds
     lb, ub = ps.lrow[i], ps.urow[i]
 
-    if ub < zero(T)
+    if ub < -ϵ
         # Infeasible
         @debug "Row $i is primal infeasible"
         ps.status = PRIMAL_INFEASIBLE
@@ -39,7 +75,7 @@ function remove_empty_row!(ps::PresolveData{T}, i::Int) where {T}
         i_ = ps.new_con_idx[i]
         ps.solution.y_upper[i] = one(T)
         return
-    elseif lb > zero(T)
+    elseif lb > ϵ
         @debug "Row $i is primal infeasible"
         ps.status = PRIMAL_INFEASIBLE
         ps.updated = true
@@ -70,10 +106,35 @@ function remove_empty_row!(ps::PresolveData{T}, i::Int) where {T}
     ps.updated = true
     ps.rowflag[i] = false
     ps.nrow -= 1
+
+    return nothing
 end
 
-function postsolve!(sol::Solution{T}, op::EmptyRow{T}) where {T}
-    sol.y_lower[op.i] = pos_part(op.y)
-    sol.y_upper[op.i] = neg_part(op.y)
+function postsolve!(sol::Solution{T}, r::EmptyRow{T}) where {T}
+    sol.y_lower[r.i] = pos_part(r.y)
+    sol.y_upper[r.i] = neg_part(r.y)
+    return nothing
+end
+
+"""
+    RemoveEmptyRows <: AbstractRule
+
+Remove all empty rows in the problem.
+
+See [`RemoveEmptyRow`](@ref).
+"""
+struct RemoveEmptyRows <: AbstractRule end
+
+function apply!(
+    ps::PresolveData{T},
+    ::RemoveEmptyRows,
+    config::PresolveOptions{T}
+) where {T}
+    for i in 1:ps.pb0.ncon
+        if ps.rowflag[i] && (ps.nzrow[i] == 0)
+            apply!(ps, RemoveEmptyRow(i), config)
+            ps.status == NOT_INFERRED || return nothing
+        end
+    end
     return nothing
 end

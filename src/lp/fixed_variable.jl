@@ -131,7 +131,7 @@ function apply!(
 
         # Check row
         if ps.nzrow[i] == 0
-            remove_empty_row!(ps, i)
+            apply!(ps, RemoveEmptyRow(i), config)
         elseif ps.nzrow == 1
             push!(ps.row_singletons, i)
         end
@@ -141,7 +141,7 @@ function apply!(
     return nothing
 end
 
-function postsolve!(sol::Solution{T}, r::FixedVariable{T}) where{T}
+function postsolve!(sol::Solution{T}, r::FixedVariable{T}) where {T}
     sol.x[r.j] = r.x
     s = sol.is_dual_ray ? zero(T) : r.c
     for (i, aij) in zip(r.col.nzind, r.col.nzval)
