@@ -7,7 +7,7 @@ In particular, consider row $i$ given as
 l^{r}_{i} ≤ \sum_{j} a_{i, j} x_{j} ≤ u^{r}_{i}.
 ```
 We eliminate row $i$ if, for each variable index $j$,
-``math
+```math
 | a_{i,j} | ≤ ϵ
 ```
 for prescribed tolerance $ϵ$.
