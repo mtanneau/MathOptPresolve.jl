@@ -27,9 +27,11 @@ $y\_lower_{i} = 1$ or $y\_upper_{i} = 1$, respectively.
 
 ## Postsolve
 
-Sets the dual variable $y\_lower_{i} = \max\{0,y\}$ for the greater-than
-constraint and the dual variable $y\_upper_{i} = \max\{0,-y\}$ for the
-less-than constraint.
+If the problem is feasible, the corresponding dual variables  all dual
+multipliers $y\_lower_{i} = $y\_upper_{i} = 0$. If the problem is infeasible,
+we update the dual variables $y\_lower_{i} = \max\{0,y\}$ for the greater-than
+ constraint and the dual variable $y\_upper_{i} = \max\{0,-y\}$ for the
+ less-than constraint.
 
 ## Misc
 
