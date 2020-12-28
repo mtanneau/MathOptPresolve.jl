@@ -6,11 +6,7 @@ In particular, consider row $i$ given as
 ```math
 l^{r}_{i} ≤ \sum_{j} a_{i, j} x_{j} ≤ u^{r}_{i}.
 ```
-We eliminate row $i$ if, for each variable index $j$,
-```math
-| a_{i,j} | ≤ ϵ
-```
-for prescribed tolerance $ϵ$.
+We eliminate row $i$ if $a_{i,j} = 0$ for each variable index $j$.
 
 ## Presolve
 
@@ -61,7 +57,7 @@ function apply!(
     i = r.i
     ϵ = config.PrimalTolerance
 
-    # Sanity checks
+    # If row isn't empty, we can't remove it
     (ps.rowflag[i] && ps.nzrow[i] == 0) || return nothing
 
     # Check bounds
