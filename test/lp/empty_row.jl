@@ -5,7 +5,8 @@ function empty_row_tests(T::Type)
         min     x + y
         s.t.   -1 ⩽ 0 * x + 0 * y + 0 * z ⩽ 1
                 1 ⩽ 0 * x + 0 * y + 0 * z ⩽ 2 =#
-    pb = MathOptPresolve.ProblemData{T}()
+    pb = MOP.ProblemData{T}()
+    config = MOP.PresolveOptions{T}()
 
     m, n = 2, 3
     A = spzeros(T, m, n)
@@ -13,18 +14,18 @@ function empty_row_tests(T::Type)
     b = ones(T, m)
     c = ones(T, n)
 
-    MathOptPresolve.load_problem!(pb, "test",
+    MOP.load_problem!(pb, "test",
         true, c, zero(T),
         A, T.([-1, 1]), T.([1, 2]), zeros(T, n), fill(T(Inf), n),
     )
 
-    ps = MathOptPresolve.PresolveData(pb)
+    ps = MOP.PresolveData(pb)
 
     @test !ps.updated
     @test ps.nzrow[1] == ps.nzrow[2] == 0
 
     # Remove first empty row
-    MathOptPresolve.remove_empty_row!(ps, 1)
+    MOP.apply!(ps, MOP.RemoveEmptyRow(1), config)
 
     @test ps.updated
     @test ps.status == MOP.NOT_INFERRED
@@ -33,13 +34,13 @@ function empty_row_tests(T::Type)
     @test length(ps.ops) == 1
 
     op = ps.ops[1]
-    @test isa(op, MathOptPresolve.EmptyRow{T})
+    @test isa(op, MOP.EmptyRow{T})
     @test op.i == 1
     @test iszero(op.y)
 
     # Remove second empty row
     # This should detect infeasibility
-    MathOptPresolve.remove_empty_row!(ps, 2)
+    MOP.apply!(ps, MOP.RemoveEmptyRow(2), config)
 
     @test ps.status == MOP.PRIMAL_INFEASIBLE
     @test ps.nrow == 1
@@ -68,19 +69,20 @@ function test_empty_row_1(T::Type)
         min     x
         s.t.   1 ⩽ 0 * x ⩽ 2
         x >= 0 =#
-    pb = MathOptPresolve.ProblemData{T}()
+    pb = MOP.ProblemData{T}()
+    config = MOP.PresolveOptions{T}()
 
     m, n = 1, 1
     A = spzeros(T, m, n)
     c = ones(T, n)
 
-    MathOptPresolve.load_problem!(pb, "test",
+    MOP.load_problem!(pb, "test",
         true, c, zero(T),
         A, T.([1]), T.([2]), zeros(T, n), fill(T(Inf), n),
     )
 
-    ps = MathOptPresolve.PresolveData(pb)
-    MathOptPresolve.remove_empty_row!(ps, 1)
+    ps = MOP.PresolveData(pb)
+    MOP.apply!(ps, MOP.RemoveEmptyRow(1), config)
 
     @test ps.status == MOP.PRIMAL_INFEASIBLE
     @test ps.nrow == 1
@@ -105,19 +107,20 @@ function test_empty_row_2(T::Type)
         min     x
         s.t.   -2 ⩽ 0 * x ⩽ -1
         x >= 0 =#
-    pb = MathOptPresolve.ProblemData{T}()
+    pb = MOP.ProblemData{T}()
+    config = MOP.PresolveOptions{T}()
 
     m, n = 1, 1
     A = spzeros(T, m, n)
     c = ones(T, n)
 
-    MathOptPresolve.load_problem!(pb, "test",
+    MOP.load_problem!(pb, "test",
         true, c, zero(T),
         A, T.([-2]), T.([-1]), zeros(T, n), fill(T(Inf), n),
     )
 
-    ps = MathOptPresolve.PresolveData(pb)
-    MathOptPresolve.remove_empty_row!(ps, 1)
+    ps = MOP.PresolveData(pb)
+    MOP.apply!(ps, MOP.RemoveEmptyRow(1), config)
 
     @test ps.status == MOP.PRIMAL_INFEASIBLE
     @test ps.nrow == 1
