@@ -16,19 +16,21 @@ the problem.
 
 ## Infeasibility checks
 
-The problem is infeasible if row $i$ is empty and either 1) its
-lower bound is positive ($l^{r}_{i} > ϵ$) or 2) its upper bound is
-negative ($u^{r}_{i} < -ϵ$). In these two cases, a Farkas infeasibility
-certificate is given by setting $y$ to all zeros except for either
-$y\_lower_{i} = 1$ or $y\_upper_{i} = 1$, respectively.
+For a prescribed tolerance $ϵ ≥ 0$, the problem is infeasible if either
+1. row $i$ is empty and its lower bound is positive, i.e., $l^{r}_{i} > ϵ$, or
+2. row $i$ is empty and its upper bound is negative, i.e., $u^{r}_{i} < -ϵ$.
+
+The corresponding Farkas infeasibilities certificates are
+1.  $y^{l} = e_{i}$, $y^{u} = 0$, $z^{l} = z^{u} = 0$,
+2.  $y^{u} = e_{i}$, $y^{l} = 0$, $z^{l} = z^{u} = 0$,
+
+where $e_{i}$ is the $i$-th vector of the canonical basis.
 
 ## Postsolve
 
-If the problem is feasible, the corresponding dual variables  all dual
-multipliers $y\_lower_{i} = $y\_upper_{i} = 0$. If the problem is infeasible,
-we update the dual variables $y\_lower_{i} = \max\{0,y\}$ for the greater-than
- constraint and the dual variable $y\_upper_{i} = \max\{0,-y\}$ for the
- less-than constraint.
+If the problem is feasible, $y^{l}_{i} = y^{u}_{i} = 0$.
+
+If the problem is infeasible, see the Farkas rays above.
 
 ## Misc
 
