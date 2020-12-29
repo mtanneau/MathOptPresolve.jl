@@ -319,6 +319,7 @@ include("lp/free_column_singleton.jl")
 include("lp/dominated_column.jl")
 
 include("mip/round_integer_bounds.jl")
+include("mip/coefficient_strengthening.jl")
 
 
 """
