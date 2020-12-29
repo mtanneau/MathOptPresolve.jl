@@ -1,7 +1,8 @@
 @doc raw"""
     RemoveEmptyRow <: AbstractRule
 
-Eliminate a single row if it is empty, i.e. all variable coefficients are zero.
+Eliminate a single row if it is empty, i.e. all coefficients are zero.
+
 In particular, consider row $i$ given as
 ```math
 l^{r}_{i} ≤ \sum_{j} a_{i, j} x_{j} ≤ u^{r}_{i}.
