@@ -1,4 +1,4 @@
-function positive_coef_strengthen_test(T::Type)
+function coef_strengthen_test1(T::Type)
     # Build the following model
     #=
         min     x + y + z + w
@@ -29,14 +29,33 @@ function positive_coef_strengthen_test(T::Type)
     )
     ps = MOP.PresolveData(pb)
 
-    #MOP.coefficient_strenthening!(ps)
+    for i in 1:length(ps.var_types)
+        if ps.var_types[i] == MOP.GENERAL_INTEGER || ps.var_types[i] == MOP.BINARY
+            MOP.coefficient_strengthening!(ps, i)
+        end
+    end
 
-    #@test
-    return ps
+    @test ps.urow == T[5, 9//2]
+    @test ps.lrow == T[-1e30, -1e30]
+
+    @test ps.pb0.arows[1].nzind == [1, 2, 3, 4]
+    @test ps.pb0.arows[1].nzval == T[2, -5, 4, 2]
+    @test ps.pb0.arows[2].nzind == [2, 3, 4]
+    @test isapprox(ps.pb0.arows[2].nzval, T[1, 1, 1//2], atol = eps(T))
+
+    @test ps.pb0.acols[1].nzind == [1]
+    @test ps.pb0.acols[1].nzval == T[2]
+    @test ps.pb0.acols[2].nzind == [1, 2]
+    @test ps.pb0.acols[2].nzval == T[-5, 1]
+    @test ps.pb0.acols[3].nzind == [1, 2]
+    @test ps.pb0.acols[3].nzval == T[4, 1]
+    @test ps.pb0.acols[4].nzind == [1, 2]
+    @test ps.pb0.acols[4].nzval == T[2, 1//2]
+    @test ps.status == MOP.NOT_INFERRED
+    return nothing
 end
 
-function negative_coef_strengthen_test(T::Type)
-    Build the following model
+function coef_strengthen_test2(T::Type)
    #=
        min     x + y + z + w
        s.t.     x + y + z - 2 w ⩽ 10
@@ -66,8 +85,86 @@ function negative_coef_strengthen_test(T::Type)
    )
    ps = MOP.PresolveData(pb)
 
-   #MOP.coefficient_strenthening!(ps)
+   for i in 1:length(ps.var_types)
+       if ps.var_types[i] == MOP.GENERAL_INTEGER || ps.var_types[i] == MOP.BINARY
+           MOP.coefficient_strengthening!(ps, i)
+       end
+   end
 
-   #@test
+   @test ps.urow == T[7, 20]
+   @test ps.lrow == T[-1e30, -1e30]
+
+   @test ps.pb0.arows[1].nzind == [1, 2, 3, 4]
+   @test ps.pb0.arows[1].nzval == T[1, 1, 1, -1]
+   @test ps.pb0.arows[2].nzind == [1, 2, 3, 4]
+   @test ps.pb0.arows[2].nzval == T[2, 3, 4, 5]
+
+   @test ps.pb0.acols[1].nzind == [1, 2]
+   @test ps.pb0.acols[1].nzval == T[1, 2]
+   @test ps.pb0.acols[2].nzind == [1, 2]
+   @test ps.pb0.acols[2].nzval == T[1, 3]
+   @test ps.pb0.acols[3].nzind == [1, 2]
+   @test ps.pb0.acols[3].nzval == T[1, 4]
+   @test ps.pb0.acols[4].nzind == [1, 2]
+   @test ps.pb0.acols[4].nzval == T[-1, 5]
+   @test ps.status == MOP.NOT_INFERRED
    return nothing
+end
+
+
+function coef_strengthen_test3(T::Type)
+    C = T[1, 1, 1, 1, 1]
+    lc = T[-4, -3//2, 9, 0, -1]
+    uc = T[2, 1, 15, 1, 1]
+    lr = T[2, -1e30]
+    ur = T[1e30, 13/3]
+    A = T[1 -2 1 1 -1
+          1 1 0 1 1]
+
+    varTypes = [MOP.CONTINUOUS, MOP.CONTINUOUS,
+                MOP.GENERAL_INTEGER, MOP.BINARY, MOP.CONTINUOUS]
+
+    pb = MOP.ProblemData{T}()
+
+    MOP.load_problem!(pb, "Test",
+        true, C, zero(T),
+        sparse(A), lr, ur, lc, uc,
+        varTypes
+    )
+    ps = MOP.PresolveData(pb)
+
+    for i in 1:length(ps.var_types)
+        if ps.var_types[i] == MOP.GENERAL_INTEGER || ps.var_types[i] == MOP.BINARY
+            MOP.coefficient_strengthening!(ps, i)
+        end
+    end
+
+    @test ps.urow == T[1e30, 4]
+    @test ps.lrow == T[-7, -1e30]
+
+    @test ps.pb0.arows[1].nzind == [1, 2, 5]
+    @test ps.pb0.arows[1].nzval == T[1, -2, -1]
+    @test ps.pb0.arows[2].nzind == [1, 2, 4, 5]
+    @test isapprox(ps.pb0.arows[2].nzval, T[1, 1, 2//3, 1], atol = 1e-12)
+
+
+    @test ps.pb0.acols[1].nzind == [1, 2]
+    @test ps.pb0.acols[1].nzval == T[1, 1]
+    @test ps.pb0.acols[2].nzind == [1, 2]
+    @test ps.pb0.acols[2].nzval == T[-2, 1]
+    @test ps.pb0.acols[3].nzind == []
+    @test ps.pb0.acols[3].nzval == T[]
+    @test ps.pb0.acols[4].nzind == [2]
+    @test isapprox(ps.pb0.acols[4].nzval, T[2//3], atol = 1e-12)
+
+    @test ps.status == MOP.NOT_INFERRED
+    return nothing
+end
+
+@testset "Coefficient Strengthening" begin
+    for T in COEFF_TYPES
+        @testset "$T" begin coef_strengthen_test1(T) end
+        @testset "$T" begin coef_strengthen_test2(T) end
+        @testset "$T" begin coef_strengthen_test3(T) end
+    end
 end
