@@ -424,7 +424,7 @@ function presolve!(ps::PresolveData{T}) where {T}
 
     # I. Remove all fixed variables, empty rows and columns
     @_return_if_inferred apply!(ps, RemoveFixedVariables(), config)
-    @_return_if_inferred remove_empty_rows!(ps)
+    @_return_if_inferred apply!(ps, RemoveEmptyRows(), config)
     @_return_if_inferred remove_empty_columns!(ps)
 
     # Identify row singletons
@@ -598,25 +598,6 @@ function bounds_consistency_checks!(ps::PresolveData{T}) where {T}
 end
 
 """
-    remove_empty_rows!(ps::PresolveData)
-
-Remove all empty rows.
-
-Called once at the beginning of the presolve procedure.
-If an empty row is created later, it is removed on the spot.
-"""
-function remove_empty_rows!(ps::PresolveData{T}) where {T}
-    nempty = 0
-    for i in 1:ps.pb0.ncon
-        (ps.rowflag[i] && (ps.nzrow[i] == 0)) || continue
-        @debug "Remove empty row $i"
-
-        remove_empty_row!(ps, i)
-    end
-    return nothing
-end
-
-"""
     remove_empty_columns!(ps::PresolveData)
 
 Remove all empty columns.
@@ -647,19 +628,6 @@ function round_integer_bounds!(ps::PresolveData{T}) where {T}
 
     for j in 1:ps.pb0.nvar
         round_integer_bounds!(ps, j)
-    end
-    return nothing
-end
-
-"""
-    remove_fixed_variables!(ps::PresolveData)
-
-Remove all fixed variables.
-"""
-function remove_fixed_variables!(ps::PresolveData{T}) where {T}
-    for (j, flag) in enumerate(ps.colflag)
-        flag || continue
-    remove_fixed_variable!(ps, j)
     end
     return nothing
 end
@@ -717,7 +685,7 @@ function remove_dominated_columns!(ps::PresolveData{T}) where {T}
         iszero(aij) && continue  # empty column
 
         # Strengthen dual bounds
-        #=
+        #= 
 
         =#
         cj = ps.obj[j]
