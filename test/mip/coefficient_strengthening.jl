@@ -29,11 +29,8 @@ function coef_strengthen_test1(T::Type)
     )
     ps = MOP.PresolveData(pb)
 
-    for i in 1:length(ps.var_types)
-        if ps.var_types[i] == MOP.GENERAL_INTEGER || ps.var_types[i] == MOP.BINARY
-            MOP.coefficient_strengthening!(ps, i)
-        end
-    end
+    MOP.coefficient_strengthening!(ps)
+
 
     @test ps.urow == T[5, 9//2]
     @test ps.lrow == T[-1e30, -1e30]
@@ -85,11 +82,7 @@ function coef_strengthen_test2(T::Type)
    )
    ps = MOP.PresolveData(pb)
 
-   for i in 1:length(ps.var_types)
-       if ps.var_types[i] == MOP.GENERAL_INTEGER || ps.var_types[i] == MOP.BINARY
-           MOP.coefficient_strengthening!(ps, i)
-       end
-   end
+   MOP.coefficient_strengthening!(ps)
 
    @test ps.urow == T[7, 20]
    @test ps.lrow == T[-1e30, -1e30]
@@ -113,6 +106,16 @@ end
 
 
 function coef_strengthen_test3(T::Type)
+    #=
+        min     x₁ + x₂ + x₃ + x₄ + x₅
+        s.t.     2 ⩽x₁ + -2x₂ + x₃ + x₄ + -x₅
+                 x₁ + x₂ + x₄ + x₅ ⩽ 4.333
+                 -4 ⩽ x₁ ⩽ 2
+                 -1.5 ⩽ x₂ ⩽ 1
+                 9 ⩽ x₃ ⩽ 15
+                 0 ⩽ x₄ ⩽ 1
+                 -1 ⩽ x₅ ⩽ 1
+                 x₃ is integer, x₄ is binary  =#
     C = T[1, 1, 1, 1, 1]
     lc = T[-4, -3//2, 9, 0, -1]
     uc = T[2, 1, 15, 1, 1]
@@ -133,11 +136,8 @@ function coef_strengthen_test3(T::Type)
     )
     ps = MOP.PresolveData(pb)
 
-    for i in 1:length(ps.var_types)
-        if ps.var_types[i] == MOP.GENERAL_INTEGER || ps.var_types[i] == MOP.BINARY
-            MOP.coefficient_strengthening!(ps, i)
-        end
-    end
+    MOP.coefficient_strengthening!(ps)
+
 
     @test ps.urow == T[1e30, 4]
     @test ps.lrow == T[-7, -1e30]

@@ -19,32 +19,32 @@ function maximal_activity(row::RowOrCol{T}, j::Int, ucol::Vector{T}, lcol::Vecto
     return T(sup)
 end
 
-function single_row_strengthening(row::RowOrCol{T}, b::T, k::Int, j::Int, ucol::Vector{T}, lcol::Vector{T}) where {T}
+function single_row_strengthening(row::RowOrCol{T}, b::T, m::Int, j::Int, ucol::Vector{T}, lcol::Vector{T}) where {T}
     # perform coef strengthening for one constraints of the from a'x < b
     # and return new a' and b'
     flag = false # wether there is an update
     a = deepcopy(row.nzval)
-    if a[k] > 0
-        d = b - maximal_activity(row, j, ucol, lcol) - a[k]*(ucol[j]-1)
-        if a[k] >= d && d > 0
-            a[k] = a[k] - d
+    if a[m] > 0
+        d = b - maximal_activity(row, j, ucol, lcol) - a[m]*(ucol[j]-1)
+        if a[m] >= d && d > 0
+            a[m] = a[m] - d
             b = b - d*ucol[j]
             flag = true
         end
-    elseif a[k] < 0
-        d = b - maximal_activity(row, j, ucol, lcol) - a[k]*(lcol[j]+1)
-        if -a[k] >= d && d > 0
-            a[k] = a[k] + d
+    elseif a[m] < 0
+        d = b - maximal_activity(row, j, ucol, lcol) - a[m]*(lcol[j]+1)
+        if -a[m] >= d && d > 0
+            a[m] = a[m] + d
             b = b + d*lcol[j]
             flag = true
         end
     end
-    return a, b, a[k], flag
+    return a, b, a[m], flag
 end
 
 function coefficient_strengthening!(ps::PresolveData{T}, j::Int, inf::T = T(1e30)) where {T}
     # perform coefficient strengthening on integer variable j
-    ps.colflag[j] || (ps.var_types[j] != CONTINUOUS) || return nothing
+    (ps.var_types[j] != CONTINUOUS) || return nothing
 
     for i in 1:length(ps.pb0.arows)
         row = ps.pb0.arows[i]
@@ -52,11 +52,8 @@ function coefficient_strengthening!(ps::PresolveData{T}, j::Int, inf::T = T(1e30
         urow = ps.urow[i]
 
         m = findfirst(isequal(j), row.nzind)
-        if m == nothing
-            continue
-        end
-        if lrow > -inf && urow < inf
-            continue #skipping ranged constraints
+        if m == nothing || (lrow > -inf && urow < inf)
+            continue #skipping ranged constraints and
         elseif urow < inf
             a, b, new_coef, updated = single_row_strengthening(row, urow, m, j, ps.ucol, ps.lcol)
             if updated
@@ -93,7 +90,7 @@ function coefficient_strengthening!(ps::PresolveData{T}, j::Int, inf::T = T(1e30
                     deleteat!(ps.pb0.acols[j].nzval, k)
                 else
                     k = findfirst(isequal(i), ps.pb0.acols[j].nzind)
-                    ps.pb0.acols[j].nzval[k] = new_coef
+                    ps.pb0.acols[j].nzval[k] = -new_coef
                 end
             end
         end

@@ -415,6 +415,9 @@ function presolve!(ps::PresolveData{T}) where {T}
     # Round the bounds of integer variables are integers.
     round_integer_bounds!(ps)
 
+    # Coeficient strengthening
+    coefficient_strengthening!(ps)
+
     # Check bound consistency on all rows/columns
     st = bounds_consistency_checks!(ps)
     ps.status == PRIMAL_INFEASIBLE && return ps.status
@@ -753,6 +756,25 @@ function remove_dominated_columns!(ps::PresolveData{T}) where {T}
     for (j, flag) in enumerate(ps.colflag)
         remove_dominated_column!(ps, j)
         ps.status == NOT_INFERRED || break
+    end
+    return nothing
+end
+
+"""
+    coefficient_strengthening!(ps::PresolveData)
+
+Perform coefficient strengthening for integer/binary variables
+on every constraints.
+
+Called once at the very beginning of the presolve procedure.
+"""
+
+function coefficient_strengthening!(ps::PresolveData{T}) where {T}
+    # The problem is LP.
+    ps.pb0.is_continuous && return nothing
+
+    for j in 1:ps.pb0.nvar
+        coefficient_strengthening!(ps, j)
     end
     return nothing
 end
