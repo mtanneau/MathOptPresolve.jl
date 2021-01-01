@@ -12,7 +12,7 @@ function coef_strengthen_test1(T::Type)
     C = T[1, 1, 1, 1]
     lc = T[0, 1, 0, 2]
     uc = T[1, 5//2, 1, 3]
-    lr = T[-1e30, -1e30]
+    lr = T[-Inf, -Inf]
     ur = T[8, 6]
     A = T[2 -5 4 3
           0 1 1 1]
@@ -33,7 +33,7 @@ function coef_strengthen_test1(T::Type)
 
 
     @test ps.urow == T[5, 9//2]
-    @test ps.lrow == T[-1e30, -1e30]
+    @test ps.lrow == T[-Inf, -Inf]
 
     @test ps.pb0.arows[1].nzind == [1, 2, 3, 4]
     @test ps.pb0.arows[1].nzval == T[2, -5, 4, 2]
@@ -64,8 +64,8 @@ function coef_strengthen_test2(T::Type)
                 w is integer =#
    C = T[1, 1, 1, 1]
    lc = T[0, 0, 0, -3]
-   uc = T[2, 1, 2, 10^30]
-   lr = T[-1e30, -1e30]
+   uc = T[2, 1, 2, Inf]
+   lr = T[-Inf, -Inf]
    ur = T[10, 20]
    A = T[1 1 1 -2
          2 3 4 5]
@@ -85,7 +85,7 @@ function coef_strengthen_test2(T::Type)
    MOP.coefficient_strengthening!(ps)
 
    @test ps.urow == T[7, 20]
-   @test ps.lrow == T[-1e30, -1e30]
+   @test ps.lrow == T[-Inf, -Inf]
 
    @test ps.pb0.arows[1].nzind == [1, 2, 3, 4]
    @test ps.pb0.arows[1].nzval == T[1, 1, 1, -1]
@@ -119,8 +119,8 @@ function coef_strengthen_test3(T::Type)
     C = T[1, 1, 1, 1, 1]
     lc = T[-4, -3//2, 9, 0, -1]
     uc = T[2, 1, 15, 1, 1]
-    lr = T[2, -1e30]
-    ur = T[1e30, 13/3]
+    lr = T[2, -Inf]
+    ur = T[Inf, 13/3]
     A = T[1 -2 1 1 -1
           1 1 0 1 1]
 
@@ -139,8 +139,8 @@ function coef_strengthen_test3(T::Type)
     MOP.coefficient_strengthening!(ps)
 
 
-    @test ps.urow == T[1e30, 4]
-    @test ps.lrow == T[-7, -1e30]
+    @test ps.urow == T[Inf, 4]
+    @test ps.lrow == T[-7, -Inf]
 
     @test ps.pb0.arows[1].nzind == [1, 2, 5]
     @test ps.pb0.arows[1].nzval == T[1, -2, -1]
