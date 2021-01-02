@@ -18,7 +18,8 @@ end
 
 function round_integer_bounds!(ps::PresolveData{T}, j::Int, ϵ_int::T=eps(T)) where{T}
     # Column was already removed or the variable is continous.
-    ps.colflag[j] || (ps.var_types[j] != CONTINUOUS) || return nothing
+    ps.colflag[j] || return nothing
+    (ps.var_types[j] == CONTINUOUS) && return nothing
 
     if (ps.var_types[j] == BINARY) # Variable type is binary.
         ps.lcol[j] = T(max(0, approx_ceil(ps.lcol[j], ϵ_int)))
