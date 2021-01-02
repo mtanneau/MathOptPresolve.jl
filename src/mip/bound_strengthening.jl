@@ -4,6 +4,8 @@ function bound_strengthening!(ps::PresolveData{T}, j::Int, ϵ::T=eps(T), ϵ_int:
     (ps.var_types[j] == CONTINUOUS) && return nothing
 
     for i in 1:ps.pb0.ncon
+        # Row was already removed.
+        ps.rowflag[i] || continue
         row = ps.pb0.arows[i]
         j_ind = findfirst(isequal(j), row.nzind)
         if (j_ind == nothing)
@@ -17,7 +19,7 @@ function bound_strengthening!(ps::PresolveData{T}, j::Int, ϵ::T=eps(T), ϵ_int:
         lrow = ps.lrow[i]
         urow = ps.urow[i]
         upper = calc_upper_bound_except_one(row, ps.lcol, ps.ucol, j)
-        lower = calc_upper_bound_except_one(row, ps.lcol, ps.ucol, j)
+        lower = calc_lower_bound_except_one(row, ps.lcol, ps.ucol, j)
         if (row_j > T(0))
             if (urow - lower != NaN)
                 ps.ucol[j] = T(min(ps.ucol[j],
