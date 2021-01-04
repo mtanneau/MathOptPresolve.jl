@@ -19,8 +19,8 @@ mutable struct IntermediaryRepresentation{T<:Real}
             T[],
             T[],
             T[],
-            zeros(T, n),
-            zeros(T, n),
+            fill(T(-Inf), n),
+            fill(T(Inf), n),
             fill(CONTINUOUS, n),
         )
     end
