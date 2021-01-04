@@ -4,6 +4,7 @@ authors = ["Mathieu Tanneau and contributors"]
 version = "0.1.0"
 
 [deps]
+MathOptInterface = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 
 [compat]

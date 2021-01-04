@@ -9,7 +9,7 @@ struct FreeColumnSingleton{T} <: AbstractReduction{T}
 end
 
 function remove_free_column_singleton!(ps::PresolveData{T}, j::Int) where {T}
-    ps.pb0.is_continuous || error("Free column routine currently only supported for LPs.")
+    # ps.pb0.is_continuous || error("Free column routine currently only supported for LPs.")
 
     ps.colflag[j] && ps.nzcol[j] == 1 || return nothing  # only column singletons
 

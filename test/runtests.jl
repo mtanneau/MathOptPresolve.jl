@@ -5,6 +5,10 @@ using SparseArrays
 
 const MOP = MathOptPresolve
 
+using MathOptInterface
+const MOI = MathOptInterface
+const MOIU = MOI.Utilities
+
 const COEFF_TYPES = [Float64, BigFloat]
 
 @testset "Problem data" begin
@@ -27,4 +31,8 @@ end
     @testset "round integer bounds" begin
         include("mip/round_integer_bounds.jl")
     end
+end
+
+@testset "MOI" begin
+    include("moi.jl")
 end
