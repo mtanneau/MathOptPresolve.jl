@@ -27,8 +27,9 @@ end
         MOP.presolve!(dest, src, T)
         @test MOI.get(dest, MOI.NumberOfVariables()) == 0
         @test MOI.get(dest, MOI.ListOfConstraints()) == []
-        @test MOI.get(dest, MOI.ObjectiveSense()) == MOI.MIN_SENSE
-        @test MOI.get(dest, MOI.ObjectiveFunction{MOI.ScalarAffineFunction{T}}()) ==
-              MOI.ScalarAffineFunction{T}([], -1.0)
+        @test MOI.get(dest, MOI.ObjectiveSense()) == MOI.FEASIBILITY_SENSE
+        obj = MOI.get(dest, MOI.ObjectiveFunction{MOI.ScalarAffineFunction{T}}())
+        @test obj.terms == []
+        @test obj.constant ≈ -1.0
     end
 end
