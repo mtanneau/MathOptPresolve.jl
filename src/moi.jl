@@ -105,8 +105,8 @@ function process_constraint!(
 end
 
 _get_bounds(s::MOI.EqualTo) = (s.value, s.value)
-_get_bounds(s::MOI.LessThan) = (T(-Inf), s.upper)
-_get_bounds(s::MOI.GreaterThan) = (s.lower, T(Inf))
+_get_bounds(s::MOI.LessThan{T}) where {T} = (T(-Inf), s.upper)
+_get_bounds(s::MOI.GreaterThan{T}) where {T} = (s.lower, T(Inf))
 _get_bounds(s::MOI.Interval) = (s.lower, s.upper)
 _get_bounds(s) = error("Unexpected set $s.")
 
