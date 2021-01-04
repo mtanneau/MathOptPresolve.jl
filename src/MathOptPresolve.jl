@@ -1,6 +1,6 @@
 module MathOptPresolve
 
-using LinearAlgebra, SparseArrays
+using SparseArrays
 using MathOptInterface
 const MOI = MathOptInterface
 
