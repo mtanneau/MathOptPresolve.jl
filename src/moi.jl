@@ -226,7 +226,7 @@ function presolve!(dest::MOI.ModelLike, src::MOI.ModelLike, T::Type{<:Real})
                 scalar_set,
             )
         end
-        return MOI.OPTIMAL, x -> _not_inferred_postsolve_fn(ps, x)
+        return MOI.OPTIMIZE_NOT_CALLED, x -> _not_inferred_postsolve_fn(ps, x)
     end
 end
 
