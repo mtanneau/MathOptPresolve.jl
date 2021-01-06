@@ -42,7 +42,7 @@ function single_row_strengthening(row::RowOrCol{T}, b::T, m::Int, j::Int, ucol::
     return a, b, a[m], flag
 end
 
-function coefficient_strengthening!(ps::PresolveData{T}, j::Int, inf::T = T(1e30)) where {T}
+function coefficient_strengthening!(ps::PresolveData{T}, j::Int) where {T}
     # perform coefficient strengthening on integer variable j
     (ps.var_types[j] != CONTINUOUS) || return nothing
 
@@ -52,9 +52,9 @@ function coefficient_strengthening!(ps::PresolveData{T}, j::Int, inf::T = T(1e30
         urow = ps.urow[i]
 
         m = findfirst(isequal(j), row.nzind)
-        if m == nothing || (lrow > -inf && urow < inf)
+        if m == nothing || (lrow > -Inf && urow < Inf)
             continue #skipping ranged constraints and
-        elseif urow < inf
+        elseif urow < Inf
             a, b, new_coef, updated = single_row_strengthening(row, urow, m, j, ps.ucol, ps.lcol)
             if updated
                 row.nzval = a
@@ -73,7 +73,7 @@ function coefficient_strengthening!(ps::PresolveData{T}, j::Int, inf::T = T(1e30
                     ps.pb0.acols[j].nzval[k] = new_coef
                 end
             end
-        elseif lrow > -inf
+        elseif lrow > -Inf
             r = deepcopy(row)
             r.nzval = -r.nzval
             a, b, new_coef, updated = single_row_strengthening(r, -lrow, m, j, ps.ucol, ps.lcol)
