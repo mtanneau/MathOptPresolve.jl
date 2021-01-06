@@ -270,7 +270,7 @@ end
 function _not_inferred_postsolve_fn(ps::PresolveData{T}, x::Vector{T}) where {T}
     orig_sol = Solution(ps.pb0.m, ps.pb0.n)
     trans_sol = Solution(ps.nrow, ps.ncol)
-    trans_sol.primal_status = NOT_INFERRED
+    trans_sol.primal_status = FEASIBLE_POINT
     trans_sol.x = x
     postsolve!(orig_sol, trans_sol, ps)
     @assert orig_sol.primal_status == FEASIBLE_POINT
