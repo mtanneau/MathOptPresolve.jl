@@ -176,33 +176,14 @@ function presolve!(dest::MOI.ModelLike, src::MOI.ModelLike, T::Type{<:Real})
     presolve!(ps)
     MOI.empty!(dest)
     if ps.status == OPTIMAL
-        # If optimal, return problem with no variables, no constraints, and
-        # objective = optimal cost.
-        MOI.set(
-            dest,
-            MOI.ObjectiveFunction{MOI.ScalarAffineFunction{T}}(),
-            MOI.ScalarAffineFunction{T}([], ps.solution.z_primal),
-        )
+        return MOI.OPTIMAL, x -> _optimal_postsolve_fn(ps, x)
     elseif ps.status == PRIMAL_INFEASIBLE
-        # If infeasible, return a model with no variables and the single
-        # constraint 0 >= 1.
-        MOI.add_constraint(
-            dest,
-            MOI.ScalarAffineFunction{MOI.ScalarAffineFunction{T}}([], 0.0),
-            MOI.GreaterThan{T}(1.0),
-        )
+        return MOI.PRIMAL_INFEASIBLE, x -> _infeasible_postsolve_fn(ps, x)
     elseif ps.status == DUAL_INFEASIBLE
-        # If unbounded, return a model with a single variable x, no
-        # constraints, and the objective "min x".
-        vi = MOI.add_variable(dest)
-        MOI.set(
-            dest,
-            MOI.ObjectiveFunction{MOI.ScalarAffineFunction{T}}(),
-            MOI.SingleVariable(vi),
-        )
-        MOI.set(dest, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+        return MOI.DUAL_INFEASIBLE, x -> _unbounded_postsolve_fn(ps, x)
     else
         @assert ps.status == NOT_INFERRED
+        @assert moi_status == MOI.OPTIMIZE_NOT_CALLED
         extract_reduced_problem!(ps)
 
         pd = ps.pb_red
@@ -245,6 +226,55 @@ function presolve!(dest::MOI.ModelLike, src::MOI.ModelLike, T::Type{<:Real})
                 scalar_set,
             )
         end
+        return MOI.OPTIMAL, x -> _not_inferred_postsolve_fn(ps, x)
     end
-    return _postsolve_fn(ps)
+end
+
+function _optimal_postsolve_fn(ps::PresolveData{T}, x::Vector{T}) where {T}
+    if !isempty(x)
+        throw(ArgumentError("Presolve solved model to optimality; postsolve expects an empty input argument."))
+    end
+    @assert ps.solution.primal_status == FEASIBLE_POINT
+    @assert !ps.solution.is_primal_ray
+    @assert !ps.solution.is_dual_ray
+    return ps.solution.x
+end
+
+function _infeasible_postsolve_fn(ps::PresolveData{T}, x::Vector{T}) where {T}
+    if !isempty(x)
+        throw(ArgumentError("Presolve proved that model is infeasible; postsolve expects an empty input argument."))
+    end
+    @assert ps.solution.primal_status == NO_SOLUTION
+    @assert !ps.solution.is_primal_ray
+    if ps.solution.is_dual_ray
+        # TODO: Return dual ray here
+        return nothing
+    else
+        return nothing
+    end
+end
+
+function _unbounded_postsolve_fn(ps::PresolveData{T}, x::Vector{T}) where {T}
+    if !isempty(x)
+        throw(ArgumentError("Presolve proved that model is unbounded; postsolve expects an empty input argument."))
+    end
+    @assert ps.solution.dual_status == NO_SOLUTION
+    @assert !ps.solution.is_dual_ray
+    if ps.solution.is_primal_ray
+        return ps.solution.x
+    else
+        return nothing
+    end
+end
+
+function _not_inferred_postsolve_fn(ps::PresolveData{T}, x::Vector{T}) where {T}
+    orig_sol = Solution(ps.pb0.m, ps.pb0.n)
+    trans_sol = Solution(ps.nrow, ps.ncol)
+    trans_sol.primal_status = NOT_INFERRED
+    trans_sol.x = x
+    postsolve!(orig_sol, trans_sol, ps)
+    @assert orig_sol.primal_status == FEASIBLE_POINT
+    @assert !ps.solution.is_primal_ray
+    @assert !ps.solution.is_dual_ray
+    return orig_sol.x
 end
