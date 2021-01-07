@@ -1,99 +1,105 @@
-function maximal_activity(row::RowOrCol{T}, j::Int, ucol::Vector{T}, lcol::Vector{T})::T where {T}
+function maximal_activity(row::Row{T}, j::Int, ucol::Vector{T}, lcol::Vector{T})::T where {T}
     # compute the sup of row i (execpt the integer variable j)
 
     # only compute the maximal activity of any variables except j
-    nonzero_index = [i for i in 1:length(row.nzind) if row.nzind[i] != j]
-    nonzero_value = row.nzval[nonzero_index]
+    sup = zero(T)
 
-    pos_coef = deepcopy(nonzero_value)
-    neg_coef = deepcopy(nonzero_value)
-
-    for i in 1:length(nonzero_value)
-        if nonzero_value[i] < 0
-            pos_coef[i] = 0
+    for (k, a_k) in zip(row.nzind, row.nzval)
+        if k == j
+            continue
+        elseif a_k > zero(T)
+            sup += a_k*ucol[j]
         else
-            neg_coef[i] = 0
+            sup += a_k*lcol[j]
         end
     end
-    sup = ucol[nonzero_index]'pos_coef + lcol[nonzero_index]'neg_coef
     return T(sup)
 end
 
-function single_row_strengthening(row::RowOrCol{T}, b::T, m::Int, j::Int, ucol::Vector{T}, lcol::Vector{T}) where {T}
-    # perform coef strengthening for one constraints of the from a'x < b
-    # and return new a' and b'
-    flag = false # wether there is an update
-    a = deepcopy(row.nzval)
-    if a[m] > 0
-        d = b - maximal_activity(row, j, ucol, lcol) - a[m]*(ucol[j]-1)
-        if a[m] >= d && d > 0
-            a[m] = a[m] - d
-            b = b - d*ucol[j]
-            flag = true
-        end
-    elseif a[m] < 0
-        d = b - maximal_activity(row, j, ucol, lcol) - a[m]*(lcol[j]+1)
-        if -a[m] >= d && d > 0
-            a[m] = a[m] + d
-            b = b + d*lcol[j]
-            flag = true
+function minimal_activity(row::Row{T}, j::Int, ucol::Vector{T}, lcol::Vector{T})::T where {T}
+    # compute the inf of row i (execpt the integer variable j)
+
+    # only compute the minimal activity of any variables except j
+    sup = zero(T)
+
+    for (k, a_k) in zip(row.nzind, row.nzval)
+        if k == j
+            continue
+        elseif a_k > zero(T)
+            sup += a_k*lcol[j]
+        else
+            sup += a_k*ucol[j]
         end
     end
-    return a, b, a[m], flag
+    return T(sup)
 end
 
-function coefficient_strengthening!(ps::PresolveData{T}, j::Int) where {T}
-    # perform coefficient strengthening on integer variable j
-    (ps.var_types[j] != CONTINUOUS) || return nothing
+function upperbound_strengthening!(ps::PresolveData{T}, i::Int, j_index::Int, j::In) where {T}
+    # perform coef strengthening for one constraints of the from a'x <= u
+    row = ps.pb0.arows[i]
+    a = row.nzval
+    u = ps.urow[i]
+    if a[j_index] > 0
+        d = u - maximal_activity(row, j, ps.ucol, ps.lcol) - a[j_index]*(ps.ucol[j]-1)
+        if a[j_index] >= d && d > 0
+            a[j_index] = a[j_index] - d
+            ps.urow[i] = u - d*ucol[j]
+        end
+    elseif a[j_index] < 0
+        d = u - maximal_activity(row, j, ps.ucol, ps.lcol) - a[j_index]*(ps.lcol[j]+1)
+        if -a[j_index] >= d && d > 0
+            a[j_index] = a[j_index] + d
+            ps.urow[i] = u + d*lcol[j]
+        end
+    end
+    return nothing
+end
 
-    for i in 1:length(ps.pb0.arows)
-        row = ps.pb0.arows[i]
-        lrow = ps.lrow[i]
-        urow = ps.urow[i]
+function lowerbound_strengthening!(ps::PresolveData{T}, i::Int, j_index::Int, j::In) where {T}
+    # perform coef strengthening for one constraints of the from l < = a'x
+    row = ps.pb0.arows[i]
+    a = row.nzval
+    l = ps.urow[i]
+    if a[j_index] > 0
+        d = -l + minimal_activity(row, j, ps.ucol, ps.lcol) + a[j_index]*(ps.lcol[j]+1)
+        if a[j_index] >= d && d > 0
+            a[j_index] = a[j_index] - d
+            ps.lrow[i] = l - d*ps.lcol[j]
+        end
+    elseif a[j_index] < 0
+        d = -l - minimal_activity(row, j, ps.ucol, ps.lcol) + a[j_index]*(ps.ucol[j]-1)
+        if -a[j_index] >= d && d > 0
+            a[j_index] = a[j_index] + d
+            ps.urow[i] = u + d*ps.ucol[j]
+        end
+    end
+    return nothing
+end
 
-        m = findfirst(isequal(j), row.nzind)
-        if m == nothing || (lrow > -Inf && urow < Inf)
-            continue #skipping ranged constraints and
-        elseif urow < Inf
-            a, b, new_coef, updated = single_row_strengthening(row, urow, m, j, ps.ucol, ps.lcol)
-            if updated
-                row.nzval = a
-                ps.urow[i] = b
+function coefficient_strengthening!(ps::PresolveData{T}, i::Int) where {T}
+    # perform coefficient strengthening on row i
+    row = ps.pb0.arows[i]
+    lrow = ps.lrow[i]
+    urow = ps.urow[i]
 
-                # update collumns of A in problem data
-                # and update the sparse matrix in the case where the new coefficient is close to 0
-                if abs(new_coef) <= eps(T)
-                    deleteat!(row.nzind, m)
-                    deleteat!(row.nzval, m)
-                    k = findfirst(isequal(i), ps.pb0.acols[j].nzind)
-                    deleteat!(ps.pb0.acols[j].nzind, k)
-                    deleteat!(ps.pb0.acols[j].nzval, k)
-                else
-                    k = findfirst(isequal(i), ps.pb0.acols[j].nzind)
-                    ps.pb0.acols[j].nzval[k] = new_coef
-                end
-            end
-        elseif lrow > -Inf
-            r = deepcopy(row)
-            r.nzval = -r.nzval
-            a, b, new_coef, updated = single_row_strengthening(r, -lrow, m, j, ps.ucol, ps.lcol)
-            if updated
-                row.nzval = -a
-                ps.lrow[i] = -b
+    if lrow > -Inf && urow < Inf #skip ranged constraints
+        return nothing
+    end
 
-                # update collumns of A in problem data
-                if abs(new_coef) <= eps(T)
-                    deleteat!(row.nzind, m)
-                    deleteat!(row.nzval, m)
-                    k = findfirst(isequal(i), ps.pb0.acols[j].nzind)
-                    deleteat!(ps.pb0.acols[j].nzind, k)
-                    deleteat!(ps.pb0.acols[j].nzval, k)
-                else
-                    k = findfirst(isequal(i), ps.pb0.acols[j].nzind)
-                    ps.pb0.acols[j].nzval[k] = -new_coef
-                end
+    for j in ps.pb0.nvar
+        if ps.var_types[j] == CONTINUOUS || !ps.colflag[j]
+            continue
+        else
+            j_index = findfirst(isequal(j), row.nzind) # index of var j in sparse row
+            if j_index == nothing # zero coefficent variable
+                continue
+            elseif urow < Inf
+                upperbound_strengthening!(ps, i, j_index, j)
+            elseif lrow > -Inf
+                lowerbound_strengthening!(ps, i, j_index, j)
             end
         end
     end
+
     return nothing
 end
