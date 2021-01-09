@@ -1,40 +1,53 @@
-function bound_strengthening!(ps::PresolveData{T}, j::Int, ϵ::T=eps(T), ϵ_int::T=eps(T)) where{T}
+@doc raw"""
+
+The behavior of bound_strengthening!() depends on the ordering of the variables.
+
+Let the constraints in the j-th row be
+lrow ⩽ row_S x_S + row_j x_j ⩽ urow
+
+Denote the U(row_S x_S) be the upper bound of row_S x_S and
+L(row_S x_S) be the lower bound of row_S x_S.
+
+Then, lrow - U(row_S x_S) ⩽ row_j x_j ⩽ urow - L(row_S x_S).
+
+Thus, if row_j > 0,
+x_j ⩽ floor((urow - L(row_S x_S)) / row_j) and
+x_j ⩾ ceil((lrow - U(row_S x_S) x_j) / row_j).
+
+If row_j < 0,
+x_j ⩾ ceil((urow - L(row_S x_S)) / row_j) and
+x_j ⩽ floor((lrow - U(row_S x_S) x_j) / row_j).
+"""
+
+function bound_strengthening!(ps::PresolveData{T}, j::Int, ϵ_int::T=eps(T)) where{T}
     # Column was already removed or the variable is continous.
     ps.colflag[j] || return nothing
     (ps.var_types[j] == CONTINUOUS) && return nothing
-
-    for i in 1:ps.pb0.ncon
+    col = ps.pb0.acols[j]
+    for (i, row_j) in zip(col.nzind, col.nzval)
         # Row was already removed.
         ps.rowflag[i] || continue
         row = ps.pb0.arows[i]
-        j_ind = findfirst(isequal(j), row.nzind)
-        if (j_ind == nothing)
-            row_j = 0
-        else
-            row_j = row.nzval[j_ind]
-        end
-        if (abs(row_j) <= ϵ) # a_{i,j} is 0.
-            continue
-        end
+
         lrow = ps.lrow[i]
         urow = ps.urow[i]
         upper = calc_upper_bound_except_one(row, ps.lcol, ps.ucol, j)
         lower = calc_lower_bound_except_one(row, ps.lcol, ps.ucol, j)
         if (row_j > T(0))
-            if (urow - lower != NaN)
+            if isfinite(urow) && isfinite(lower)
                 ps.ucol[j] = T(min(ps.ucol[j],
                                 approx_floor((urow - lower) / row_j, ϵ_int)))
             end
-            if (lrow - upper != NaN)
+            if isfinite(lrow) && isfinite(upper)
                 ps.lcol[j] = T(max(ps.lcol[j],
                                 approx_ceil((lrow - upper) / row_j, ϵ_int)))
             end
         else
-            if (lrow - upper != NaN)
+            if isfinite(urow) && isfinite(lower)
                 ps.lcol[j] = T(max(ps.lcol[j],
                                 approx_ceil((urow - lower) / row_j, ϵ_int)))
             end
-            if (urow - lower != NaN)
+            if isfinite(lrow) && isfinite(upper)
                 ps.ucol[j] = T(min(ps.ucol[j],
                                 approx_floor((lrow - upper) / row_j, ϵ_int)))
             end
@@ -49,7 +62,13 @@ function calc_upper_bound_except_one(row::Row{T}, lcol::Vector{T},
     for i in 1:length(row.nzind)
         ind, val = row.nzind[i], row.nzval[i]
         (ind == j) && continue
-        (val > 0) ? bound += val * ucol[ind] : bound += val * lcol[ind]
+        if (val > 0)
+            isfinite(ucol[ind]) || return Inf
+            bound += val * ucol[ind]
+        else
+            isfinite(lcol[ind]) || return Inf
+            bound += val * lcol[ind]
+        end
     end
     return bound
 end
@@ -60,7 +79,13 @@ function calc_lower_bound_except_one(row::Row{T}, lcol::Vector{T},
     for i in 1:length(row.nzind)
         ind, val = row.nzind[i], row.nzval[i]
         (ind == j) && continue
-        (val > 0) ? bound += val * lcol[ind] : bound += val * ucol[ind]
+        if (val > 0)
+            isfinite(lcol[ind]) || return -Inf
+            bound += val * lcol[ind]
+        else
+            isfinite(ucol[ind]) || return -Inf
+            bound += val * ucol[ind]
+        end
     end
     return bound
 end
