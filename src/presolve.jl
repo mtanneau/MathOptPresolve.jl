@@ -416,7 +416,7 @@ function presolve!(ps::PresolveData{T}) where {T}
     apply!(ps, RoundIntegerBounds(), config)
 
     # Strengthen the bounds of integer variables by domain propagation.
-    apply!(ps, StrengthenIntegerBounds(), config)
+    apply!(ps, StrengthenBounds(), config)
 
     # Check bound consistency on all rows/columns
     st = bounds_consistency_checks!(ps)
@@ -439,7 +439,7 @@ function presolve!(ps::PresolveData{T}) where {T}
         @debug "Presolve pass $npasses" ps.nrow ps.ncol
         apply!(ps, RoundIntegerBounds(), config)
 
-        apply!(ps, StrengthenIntegerBounds(), config)
+        apply!(ps, StrengthenBounds(), config)
 
         @_return_if_inferred bounds_consistency_checks!(ps)
         @_return_if_inferred remove_empty_columns!(ps)

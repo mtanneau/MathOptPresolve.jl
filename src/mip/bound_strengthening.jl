@@ -68,25 +68,99 @@ function apply!(
     return nothing
 end
 
-"""
-    StrengthenIntegerBounds <: AbstractRule
-Strengthen the bounds of all the integer variables in the problem.
 
-Note: The behavior of `StrengthenIntegerBounds` depends on
-the ordering of the variables.
+@doc raw"""
+    StrengthenSingleContinuousBound <: AbstractRule
+
+Strengthen the bounds of continuous variables using single constraint.
+
+Let the constraints in the j-th row be
+lrow ⩽ row_S x_S + row_j x_j ⩽ urow
+
+Denote the U(row_S x_S) be the upper bound of row_S x_S and
+L(row_S x_S) be the lower bound of row_S x_S.
+
+Then, lrow - U(row_S x_S) ⩽ row_j x_j ⩽ urow - L(row_S x_S).
+
+Thus, if row_j > 0,
+x_j ⩽ (urow - L(row_S x_S)) / row_j and
+x_j ⩾ (lrow - U(row_S x_S) x_j) / row_j.
+
+If row_j < 0,
+x_j ⩾ (urow - L(row_S x_S)) / row_j and
+x_j ⩽ (lrow - U(row_S x_S) x_j) / row_j.
 """
-struct StrengthenIntegerBounds <: AbstractRule end
+
+struct StrengthenSingleContinuousBound <: AbstractRule
+    j::Int
+end
 
 function apply!(
     ps::PresolveData{T},
-    ::StrengthenIntegerBounds,
+    r::StrengthenSingleContinuousBound,
+    config::PresolveOptions{T}
+) where {T}
+    j = r.j
+
+    # Column was already removed or the variable isn't continous.
+    ps.colflag[j] || return nothing
+    (ps.var_types[j] == CONTINUOUS) || return nothing
+    col = ps.pb0.acols[j]
+    for (i, row_j) in zip(col.nzind, col.nzval)
+        # Row was already removed.
+        ps.rowflag[i] || continue
+        row = ps.pb0.arows[i]
+
+        lrow = ps.lrow[i]
+        urow = ps.urow[i]
+        upper = calc_upper_bound_except_one(row, ps.lcol, ps.ucol, j)
+        lower = calc_lower_bound_except_one(row, ps.lcol, ps.ucol, j)
+        if (row_j > T(0))
+            if isfinite(urow) && isfinite(lower)
+                ps.ucol[j] = T(min(ps.ucol[j],
+                                (urow - lower) / row_j))
+            end
+            if isfinite(lrow) && isfinite(upper)
+                ps.lcol[j] = T(max(ps.lcol[j],
+                                (lrow - upper) / row_j))
+            end
+        else
+            if isfinite(urow) && isfinite(lower)
+                ps.lcol[j] = T(max(ps.lcol[j],
+                                (urow - lower) / row_j))
+            end
+            if isfinite(lrow) && isfinite(upper)
+                ps.ucol[j] = T(min(ps.ucol[j],
+                                (lrow - upper) / row_j))
+            end
+        end
+    end
+    return nothing
+end
+
+"""
+    StrengthenBounds <: AbstractRule
+Strengthen the bounds of all the integer variables in the problem.
+
+Note: The behavior of `StrengthenBounds` depends on
+the ordering of the variables.
+"""
+struct StrengthenBounds <: AbstractRule end
+
+function apply!(
+    ps::PresolveData{T},
+    ::StrengthenBounds,
     config::PresolveOptions{T}
 ) where {T}
     # The problem is LP.
     ps.pb0.is_continuous && return nothing
 
     for j in 1:ps.pb0.nvar
-        apply!(ps, StrengthenSingleIntegerBound(j), config)
+        if (ps.var_types[j] == CONTINUOUS)
+            apply!(ps, StrengthenSingleContinuousBound(j), config)
+        else
+            apply!(ps, StrengthenSingleIntegerBound(j), config)
+        end
     end
     return nothing
 end
