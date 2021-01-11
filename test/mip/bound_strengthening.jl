@@ -1,4 +1,7 @@
 function bound_strengthening_tests(T::Type)
+
+    config = MOP.PresolveOptions{T}()
+
     # Build the following model
     #=
         min     x + y + z
@@ -19,7 +22,7 @@ function bound_strengthening_tests(T::Type)
     )
 
     ps = MOP.PresolveData(pb)
-    MOP.bound_strengthening!(ps)
+    MOP.apply!(ps, MOP.StrengthenIntegerBounds(), config)
     @test ps.lcol == T.([-10, 0, -Inf])
     @test ps.ucol == T.([12, 1, Inf])
 
@@ -44,7 +47,7 @@ function bound_strengthening_tests(T::Type)
     )
 
     ps = MOP.PresolveData(pb)
-    MOP.bound_strengthening!(ps)
+    MOP.apply!(ps, MOP.StrengthenIntegerBounds(), config)
     @test ps.lcol == T.([-Inf, -Inf, -1])
     @test ps.ucol == T.([Inf, Inf, 1])
 
@@ -68,7 +71,7 @@ function bound_strengthening_tests(T::Type)
     )
 
     ps = MOP.PresolveData(pb)
-    MOP.bound_strengthening!(ps)
+    MOP.apply!(ps, MOP.StrengthenIntegerBounds(), config)
     @test ps.lcol == T.([-Inf, -Inf, -1])
     @test ps.ucol == T.([Inf, Inf, 1])
 
@@ -93,7 +96,7 @@ function bound_strengthening_tests(T::Type)
     )
 
     ps = MOP.PresolveData(pb)
-    MOP.bound_strengthening!(ps)
+    MOP.apply!(ps, MOP.StrengthenIntegerBounds(), config)
     @test ps.lcol == T.([-1, -Inf, -Inf])
     @test ps.ucol == T.([1, Inf, Inf])
     # Build the following model
@@ -120,11 +123,11 @@ function bound_strengthening_tests(T::Type)
     )
 
     ps = MOP.PresolveData(pb)
-    MOP.bound_strengthening!(ps)
+    MOP.apply!(ps, MOP.StrengthenIntegerBounds(), config)
     @test ps.lcol == T.([0, -1, 0])
     @test ps.ucol == T.([1, 0, 0])
 
-    MOP.bound_strengthening!(ps)
+    MOP.apply!(ps, MOP.StrengthenIntegerBounds(), config)
     @test ps.lcol == T.([0, 0, 0])
     @test ps.ucol == T.([0, 0, 0])
     return nothing

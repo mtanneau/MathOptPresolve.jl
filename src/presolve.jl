@@ -413,10 +413,10 @@ function presolve!(ps::PresolveData{T}) where {T}
     config = PresolveOptions{T}()
 
     # Round the bounds of integer variables are integers.
-    round_integer_bounds!(ps)
+    apply!(ps, RoundIntegerBounds(), config)
 
     # Strengthen the bounds of integer variables by domain propagation.
-    bound_strengthening!(ps)
+    apply!(ps, StrengthenIntegerBounds(), config)
 
     # Check bound consistency on all rows/columns
     st = bounds_consistency_checks!(ps)
@@ -437,9 +437,9 @@ function presolve!(ps::PresolveData{T}) where {T}
         npasses += 1
         ps.updated = false
         @debug "Presolve pass $npasses" ps.nrow ps.ncol
-        round_integer_bounds!(ps)
+        apply!(ps, RoundIntegerBounds(), config)
 
-        bound_strengthening!(ps)
+        apply!(ps, StrengthenIntegerBounds(), config)
 
         @_return_if_inferred bounds_consistency_checks!(ps)
         @_return_if_inferred remove_empty_columns!(ps)
@@ -616,40 +616,6 @@ function remove_empty_columns!(ps::PresolveData{T}) where {T}
     return nothing
 end
 
-
-"""
-    round_integer_bounds!(ps::PresolveData)
-
-Ensure all columns with integer variables having integer bounds.
-
-Called once at the very beginning of the presolve procedure.
-"""
-
-function round_integer_bounds!(ps::PresolveData{T}) where {T}
-    # The problem is LP.
-    ps.pb0.is_continuous && return nothing
-
-    for j in 1:ps.pb0.nvar
-        round_integer_bounds!(ps, j)
-    end
-    return nothing
-end
-
-"""
-    bound_strengthening!(ps::PresolveData)
-
-Strengthen the bounds on integer variables with domain propagation.
-"""
-
-function bound_strengthening!(ps::PresolveData{T}) where {T}
-    # The problem is LP.
-    ps.pb0.is_continuous && return nothing
-
-    for j in 1:ps.pb0.nvar
-        bound_strengthening!(ps, j)
-    end
-    return nothing
-end
 
 function remove_row_singletons!(ps::PresolveData{T}) where {T}
     nsingletons = 0

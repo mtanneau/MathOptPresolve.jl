@@ -1,6 +1,7 @@
 @doc raw"""
+    StrengthenSingleIntegerBound <: AbstractRule
 
-The behavior of bound_strengthening!() depends on the ordering of the variables.
+Strengthen the bounds of integer variables using single constraint.
 
 Let the constraints in the j-th row be
 lrow ⩽ row_S x_S + row_j x_j ⩽ urow
@@ -19,7 +20,18 @@ x_j ⩾ ceil((urow - L(row_S x_S)) / row_j) and
 x_j ⩽ floor((lrow - U(row_S x_S) x_j) / row_j).
 """
 
-function bound_strengthening!(ps::PresolveData{T}, j::Int, ϵ_int::T=eps(T)) where{T}
+struct StrengthenSingleIntegerBound <: AbstractRule
+    j::Int
+end
+
+function apply!(
+    ps::PresolveData{T},
+    r::StrengthenSingleIntegerBound,
+    config::PresolveOptions{T}
+) where {T}
+    j = r.j
+    ϵ_int = config.IntegerTolerance
+
     # Column was already removed or the variable is continous.
     ps.colflag[j] || return nothing
     (ps.var_types[j] == CONTINUOUS) && return nothing
@@ -52,6 +64,29 @@ function bound_strengthening!(ps::PresolveData{T}, j::Int, ϵ_int::T=eps(T)) whe
                                 approx_floor((lrow - upper) / row_j, ϵ_int)))
             end
         end
+    end
+    return nothing
+end
+
+"""
+    StrengthenIntegerBounds <: AbstractRule
+Strengthen the bounds of all the integer variables in the problem.
+
+Note: The behavior of `StrengthenIntegerBounds` depends on
+the ordering of the variables.
+"""
+struct StrengthenIntegerBounds <: AbstractRule end
+
+function apply!(
+    ps::PresolveData{T},
+    ::StrengthenIntegerBounds,
+    config::PresolveOptions{T}
+) where {T}
+    # The problem is LP.
+    ps.pb0.is_continuous && return nothing
+
+    for j in 1:ps.pb0.nvar
+        apply!(ps, StrengthenSingleIntegerBound(j), config)
     end
     return nothing
 end
