@@ -98,10 +98,10 @@ function calc_upper_bound_except_one(row::Row{T}, lcol::Vector{T},
         ind, val = row.nzind[i], row.nzval[i]
         (ind == j) && continue
         if (val > 0)
-            isfinite(ucol[ind]) || return Inf
+            isfinite(ucol[ind]) || return T(Inf)
             bound += val * ucol[ind]
         else
-            isfinite(lcol[ind]) || return Inf
+            isfinite(lcol[ind]) || return T(Inf)
             bound += val * lcol[ind]
         end
     end
@@ -115,10 +115,10 @@ function calc_lower_bound_except_one(row::Row{T}, lcol::Vector{T},
         ind, val = row.nzind[i], row.nzval[i]
         (ind == j) && continue
         if (val > 0)
-            isfinite(lcol[ind]) || return -Inf
+            isfinite(lcol[ind]) || return T(-Inf)
             bound += val * lcol[ind]
         else
-            isfinite(ucol[ind]) || return -Inf
+            isfinite(ucol[ind]) || return T(-Inf)
             bound += val * ucol[ind]
         end
     end
