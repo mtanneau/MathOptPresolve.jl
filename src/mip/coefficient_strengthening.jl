@@ -8,9 +8,9 @@ function maximal_activity(row::Row{T}, j::Int, ucol::Vector{T}, lcol::Vector{T})
         if k == j
             continue
         elseif a_k > zero(T)
-            sup += a_k*ucol[j]
+            sup += a_k*ucol[k]
         else
-            sup += a_k*lcol[j]
+            sup += a_k*lcol[k]
         end
     end
     return T(sup)
@@ -26,15 +26,15 @@ function minimal_activity(row::Row{T}, j::Int, ucol::Vector{T}, lcol::Vector{T})
         if k == j
             continue
         elseif a_k > zero(T)
-            sup += a_k*lcol[j]
+            sup += a_k*lcol[k]
         else
-            sup += a_k*ucol[j]
+            sup += a_k*ucol[k]
         end
     end
     return T(sup)
 end
 
-function upperbound_strengthening!(ps::PresolveData{T}, i::Int, j_index::Int, j::In) where {T}
+function upperbound_strengthening!(ps::PresolveData{T}, i::Int, j_index::Int, j::Int)::T where {T}
     # perform coef strengthening for one constraints of the from a'x <= u
     row = ps.pb0.arows[i]
     a = row.nzval
@@ -43,23 +43,23 @@ function upperbound_strengthening!(ps::PresolveData{T}, i::Int, j_index::Int, j:
         d = u - maximal_activity(row, j, ps.ucol, ps.lcol) - a[j_index]*(ps.ucol[j]-1)
         if a[j_index] >= d && d > 0
             a[j_index] = a[j_index] - d
-            ps.urow[i] = u - d*ucol[j]
+            ps.urow[i] = u - d*ps.ucol[j]
         end
     elseif a[j_index] < 0
         d = u - maximal_activity(row, j, ps.ucol, ps.lcol) - a[j_index]*(ps.lcol[j]+1)
         if -a[j_index] >= d && d > 0
             a[j_index] = a[j_index] + d
-            ps.urow[i] = u + d*lcol[j]
+            ps.urow[i] = u + d*ps.lcol[j]
         end
     end
-    return nothing
+    return T(a[j_index])
 end
 
-function lowerbound_strengthening!(ps::PresolveData{T}, i::Int, j_index::Int, j::In) where {T}
+function lowerbound_strengthening!(ps::PresolveData{T}, i::Int, j_index::Int, j::Int)::T where {T}
     # perform coef strengthening for one constraints of the from l < = a'x
     row = ps.pb0.arows[i]
     a = row.nzval
-    l = ps.urow[i]
+    l = ps.lrow[i]
     if a[j_index] > 0
         d = -l + minimal_activity(row, j, ps.ucol, ps.lcol) + a[j_index]*(ps.lcol[j]+1)
         if a[j_index] >= d && d > 0
@@ -73,31 +73,38 @@ function lowerbound_strengthening!(ps::PresolveData{T}, i::Int, j_index::Int, j:
             ps.urow[i] = u + d*ps.ucol[j]
         end
     end
-    return nothing
+    return T(a[j_index])
 end
 
-function coefficient_strengthening!(ps::PresolveData{T}, i::Int) where {T}
-    # perform coefficient strengthening on row i
-    row = ps.pb0.arows[i]
-    lrow = ps.lrow[i]
-    urow = ps.urow[i]
+function zero_coefficient_strengthening!(ps::PresolveData{T}) where {T}
+    i_index = ones(Int, ps.pb0.nvar) # keep track of index for each var fo update ps.acols
 
-    if lrow > -Inf && urow < Inf #skip ranged constraints
-        return nothing
-    end
+    for i in 1:ps.pb0.ncon
 
-    for j in ps.pb0.nvar
-        if ps.var_types[j] == CONTINUOUS || !ps.colflag[j]
+        row = ps.pb0.arows[i]
+        lrow = ps.lrow[i]
+        urow = ps.urow[i]
+        if lrow > -Inf && urow < Inf #skip ranged constraints
             continue
-        else
-            j_index = findfirst(isequal(j), row.nzind) # index of var j in sparse row
-            if j_index == nothing # zero coefficent variable
+        end
+
+        j_index = 0 # keep track of position of variable j in row.nzind & row.nzval
+        for j in row.nzind
+            j_index += 1
+            if ps.var_types[j] == CONTINUOUS || !ps.colflag[j]
                 continue
-            elseif urow < Inf
-                upperbound_strengthening!(ps, i, j_index, j)
-            elseif lrow > -Inf
-                lowerbound_strengthening!(ps, i, j_index, j)
+            else
+                if urow < Inf
+                    new_coef = upperbound_strengthening!(ps, i, j_index, j)
+                    ps.pb0.acols[j].nzval[i_index[j]] = new_coef
+                    i_index[j] += 1
+                elseif lrow > -Inf
+                    new_coef = lowerbound_strengthening!(ps, i, j_index, j)
+                    ps.pb0.acols[j].nzval[i_index[j]] = new_coef
+                    i_index[j] += 1
+                end
             end
+
         end
     end
 
