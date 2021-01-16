@@ -242,7 +242,7 @@ function _postsolve_fn(ps::PresolveData{T}, x::Vector{T}) where {T}
         throw(ArgumentError("Presolve solved proven infeasible; cannot postsolve."))
     elseif ps.model_status == DUAL_INFEASIBLE
         @assert ps.is_primal_ray
-        # QUESTION: What do we know about ps.primal_status here?
+        @assert ps.primal_status == INFEASIBILITY_CERTIFICATE
         return ps.solution.x
     else
         @assert ps.model_status == NOT_INFERRED
