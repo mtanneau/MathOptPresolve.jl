@@ -629,6 +629,7 @@ function round_integer_bounds!(ps::PresolveData{T}) where {T}
     for j in 1:ps.pb0.nvar
         round_integer_bounds!(ps, j)
     end
+
     return nothing
 end
 
@@ -742,15 +743,17 @@ function coefficient_strengthening!(ps::PresolveData{T}) where {T}
 
     zero_coefficient_strengthening!(ps)
 
-    #removing 0 entries
-    for row in ps.pb0.arows
-        row.nzind = [row.nzind[i] for i in 1:length(row.nzval) if row.nzval[i] != 0]
-        row.nzval = [row.nzval[i] for i in 1:length(row.nzval) if row.nzval[i] != 0]
+    # inactive rows
+    for (i, row) in enumerate(ps.pb0.arows)
+        if all(row.nzval .== 0)
+            ps.rowflag[i] = false
+        end
     end
-
-    for col in ps.pb0.acols
-        col.nzind = [col.nzind[i] for i in 1:length(col.nzval) if col.nzval[i] != 0]
-        col.nzval = [col.nzval[i] for i in 1:length(col.nzval) if col.nzval[i] != 0]
+    # inactive cols
+    for (j, col) in enumerate(ps.pb0.acols)
+        if all(col.nzval .== 0)
+            ps.colflag[j] = false
+        end
     end
 
     return nothing

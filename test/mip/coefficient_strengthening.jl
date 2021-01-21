@@ -110,6 +110,8 @@ function coef_strengthen_test3(T::Type)
         min     x₁ + x₂ + x₃ + x₄ + x₅
         s.t.     2 ⩽x₁ + -2x₂ + x₃ + x₄ + -x₅
                  x₁ + x₂ + x₄ + x₅ ⩽ 4.333
+                 2x₃ ⩽ 30
+                 1.5 x₁ + 2x₂ - x₅ ⩽ 2.5
                  -4 ⩽ x₁ ⩽ 2
                  -1.5 ⩽ x₂ ⩽ 1
                  9 ⩽ x₃ ⩽ 15
@@ -117,12 +119,17 @@ function coef_strengthen_test3(T::Type)
                  -1 ⩽ x₅ ⩽ 1
                  x₃ is integer, x₄ is binary  =#
     C = T[1, 1, 1, 1, 1]
+
     lc = T[-4, -3//2, 9, 0, -1]
     uc = T[2, 1, 15, 1, 1]
-    lr = T[2, -Inf]
-    ur = T[Inf, 13/3]
+
+    lr = T[2, -Inf, -Inf, -Inf]
+    ur = T[Inf, 13/3, 30, 5//2]
+
     A = T[1 -2 1 1 -1
-          1 1 0 1 1]
+          1 1 0 1 1
+          0 0 2 0 0
+          3//2 2 0 0 -1]
 
     varTypes = [MOP.CONTINUOUS, MOP.CONTINUOUS,
                 MOP.GENERAL_INTEGER, MOP.BINARY, MOP.CONTINUOUS]
@@ -139,23 +146,26 @@ function coef_strengthen_test3(T::Type)
     MOP.coefficient_strengthening!(ps)
 
 
-    @test ps.urow == T[Inf, 4]
-    @test ps.lrow == T[-7, -Inf]
+    @test ps.urow == T[Inf, 4, 0, 5//2]
+    @test ps.lrow == T[-7, -Inf, -Inf, -Inf]
 
-    @test ps.pb0.arows[1].nzind == [1, 2, 5]
-    @test ps.pb0.arows[1].nzval == T[1, -2, -1]
-    @test ps.pb0.arows[2].nzind == [1, 2, 4, 5]
+    @test ps.pb0.arows[1].nzval == T[1, -2, 0, 0, -1]
     @test isapprox(ps.pb0.arows[2].nzval, T[1, 1, 2//3, 1], atol = 1e-12)
+    @test ps.pb0.arows[3].nzval == T[0]
+    @test ps.pb0.arows[4].nzval == T[3//2, 2,-1]
 
 
-    @test ps.pb0.acols[1].nzind == [1, 2]
-    @test ps.pb0.acols[1].nzval == T[1, 1]
-    @test ps.pb0.acols[2].nzind == [1, 2]
-    @test ps.pb0.acols[2].nzval == T[-2, 1]
-    @test ps.pb0.acols[3].nzind == []
-    @test ps.pb0.acols[3].nzval == T[]
-    @test ps.pb0.acols[4].nzind == [2]
-    @test isapprox(ps.pb0.acols[4].nzval, T[2//3], atol = 1e-12)
+    @test ps.pb0.acols[1].nzval == T[1, 1, 3//2]
+    @test ps.pb0.acols[2].nzval == T[-2, 1, 2]
+    @test ps.pb0.acols[3].nzval == T[0, 0]
+    @test isapprox(ps.pb0.acols[4].nzval, T[0, 2//3], atol = 1e-12)
+    @test ps.pb0.acols[5].nzval == T[-1, 1, -1]
+
+    @test ps.colflag[3] == false
+    @test ps.rowflag[3] == false
+
+    @test ps.nzrow == [3, 4, 0, 3]
+    @test ps.nzcol == [3, 3, 0, 1, 3]
 
     @test ps.status == MOP.NOT_INFERRED
     return nothing
