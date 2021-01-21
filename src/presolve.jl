@@ -629,6 +629,7 @@ function round_integer_bounds!(ps::PresolveData{T}) where {T}
     for j in 1:ps.pb0.nvar
         round_integer_bounds!(ps, j)
     end
+
     return nothing
 end
 
@@ -685,7 +686,7 @@ function remove_dominated_columns!(ps::PresolveData{T}) where {T}
         iszero(aij) && continue  # empty column
 
         # Strengthen dual bounds
-        #= 
+        #=
 
         =#
         cj = ps.obj[j]
@@ -738,11 +739,22 @@ Called once at the very beginning of the presolve procedure.
 """
 
 function coefficient_strengthening!(ps::PresolveData{T}) where {T}
-    # The problem is LP.
     ps.pb0.is_continuous && return nothing
 
-    for j in 1:ps.pb0.nvar
-        coefficient_strengthening!(ps, j)
+    zero_coefficient_strengthening!(ps)
+
+    # inactive rows
+    for (i, row) in enumerate(ps.pb0.arows)
+        if all(row.nzval .== 0)
+            ps.rowflag[i] = false
+        end
     end
+    # inactive cols
+    for (j, col) in enumerate(ps.pb0.acols)
+        if all(col.nzval .== 0)
+            ps.colflag[j] = false
+        end
+    end
+
     return nothing
 end
