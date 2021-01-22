@@ -119,7 +119,7 @@ function zero_coefficient_strengthening!(ps::PresolveData{T}) where {T}
             i_index[j] += 1
             if ps.var_types[j] == CONTINUOUS || !ps.colflag[j]
                 continue
-            else
+            end
                 coef = row.nzval[j_index]
 
                 if urow < Inf
