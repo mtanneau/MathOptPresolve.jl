@@ -101,7 +101,7 @@ function zero_coefficient_strengthening!(ps::PresolveData{T}) where {T}
 
         lrow = ps.lrow[i]
         urow = ps.urow[i]
-        if lrow > -Inf && urow < Inf #skip ranged constraints
+        if isfinite(lrow) && isfinite(urow)  # skip ranged constraints
             continue
         end
 
