@@ -103,7 +103,7 @@ function zero_coefficient_strengthening!(ps::PresolveData{T}) where {T}
 
         lrow = ps.lrow[i]
         urow = ps.urow[i]
-        if lrow > -Inf && urow < Inf #skip ranged constraints
+        if isfinite(lrow) && isfinite(urow) #skip ranged constraints
             continue
         end
 
@@ -124,7 +124,7 @@ function zero_coefficient_strengthening!(ps::PresolveData{T}) where {T}
             else
                 coef = row.nzval[j_index]
 
-                if urow < Inf
+                if isfinite(urow)
                     if coef > 0
                         max_act = sup - coef * ps.ucol[j] # maximal activity of every variables except j
                     else
@@ -146,7 +146,7 @@ function zero_coefficient_strengthening!(ps::PresolveData{T}) where {T}
                     else
                         sup = sup - (coef - new_coef) * ps.lcol[j]
                     end
-                elseif lrow > -Inf
+                elseif isfinite(lrow)
                     if coef > 0
                         min_act = inf - coef * ps.lcol[j] # minimal activity of every variables except j
                     else
