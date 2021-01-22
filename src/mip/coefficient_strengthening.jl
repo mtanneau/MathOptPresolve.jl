@@ -48,7 +48,7 @@ function minimal_activity(row::Row{T}, ucol::Vector{T}, lcol::Vector{T})::T wher
 end
 
 function upperbound_strengthening!(ps::PresolveData{T}, i::Int, j_index::Int, j::Int, max_act) where {T}
-    # perform coef strengthening for one constraints of the from a'x <= u
+    # perform coef strengthening for one constraint of the form a'x <= u
     row = ps.pb0.arows[i]
     a = row.nzval
     u = ps.urow[i]
