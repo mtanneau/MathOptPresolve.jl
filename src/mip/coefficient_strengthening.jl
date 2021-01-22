@@ -86,7 +86,7 @@ function lowerbound_strengthening!(ps::PresolveData{T}, i::Int, j_index::Int, j:
             ps.urow[i] = u + d*ps.ucol[j]
         end
     end
-    return T(a[j_index])
+    return a[j_index]
 end
 
 function zero_coefficient_strengthening!(ps::PresolveData{T}) where {T}
