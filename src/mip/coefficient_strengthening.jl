@@ -40,7 +40,7 @@ function minimal_activity(row::Row{T}, ucol::Vector{T}, lcol::Vector{T})::T wher
     for (j, aij) in zip(row.nzind, row.nzval)
         if aij > zero(T)
             inf += aij*lcol[j]
-        else
+        elseif aij < zero(T)
             inf += aij*ucol[j]
         end
     end
@@ -48,7 +48,7 @@ function minimal_activity(row::Row{T}, ucol::Vector{T}, lcol::Vector{T})::T wher
 end
 
 function upperbound_strengthening!(ps::PresolveData{T}, i::Int, j_index::Int, j::Int, max_act) where {T}
-    # perform coef strengthening for one constraints of the from a'x <= u
+    # perform coef strengthening for one constraint of the form a'x <= u
     row = ps.pb0.arows[i]
     a = row.nzval
     u = ps.urow[i]
@@ -86,7 +86,7 @@ function lowerbound_strengthening!(ps::PresolveData{T}, i::Int, j_index::Int, j:
             ps.urow[i] = u + d*ps.ucol[j]
         end
     end
-    return T(a[j_index])
+    return a[j_index]
 end
 
 function zero_coefficient_strengthening!(ps::PresolveData{T}) where {T}
@@ -101,7 +101,7 @@ function zero_coefficient_strengthening!(ps::PresolveData{T}) where {T}
 
         lrow = ps.lrow[i]
         urow = ps.urow[i]
-        if lrow > -Inf && urow < Inf #skip ranged constraints
+        if isfinite(lrow) && isfinite(urow)  # skip ranged constraints
             continue
         end
 
@@ -119,7 +119,7 @@ function zero_coefficient_strengthening!(ps::PresolveData{T}) where {T}
             i_index[j] += 1
             if ps.var_types[j] == CONTINUOUS || !ps.colflag[j]
                 continue
-            else
+            end
                 coef = row.nzval[j_index]
 
                 if urow < Inf
