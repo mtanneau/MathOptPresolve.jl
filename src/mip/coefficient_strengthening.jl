@@ -40,7 +40,7 @@ function minimal_activity(row::Row{T}, ucol::Vector{T}, lcol::Vector{T})::T wher
     for (j, aij) in zip(row.nzind, row.nzval)
         if aij > zero(T)
             inf += aij*lcol[j]
-        else
+        elseif aij < zero(T)
             inf += aij*ucol[j]
         end
     end
