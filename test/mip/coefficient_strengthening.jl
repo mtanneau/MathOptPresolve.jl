@@ -171,10 +171,69 @@ function coef_strengthen_test3(T::Type)
     return nothing
 end
 
+function coef_strengthen_test4(T::Type)
+    #=
+        min     x + y + z
+        s.t.     -6 ⩽ x - y
+                 -10 ⩽ x + 2y + 3z ⩽ 10
+                 -1 ⩽ x
+                 y ⩽ 6
+                 y is integer =#
+
+     C = T[1, 1, 1]
+
+     lc = T[-1, -Inf, -Inf]
+     uc = T[Inf, 6, Inf]
+
+     lr = T[-61//10, -10]
+     ur = T[Inf, 10]
+
+     A = T[1 -1 0
+           1 2 3]
+
+     varTypes = [MOP.CONTINUOUS, MOP.GENERAL_INTEGER, MOP.CONTINUOUS]
+
+     pb = MOP.ProblemData{T}()
+
+     MOP.load_problem!(pb, "Test",
+         true, C, zero(T),
+         sparse(A), lr, ur, lc, uc,
+         varTypes
+     )
+     ps = MOP.PresolveData(pb)
+
+     MOP.coefficient_strengthening!(ps)
+
+     @test ps.urow == T[Inf, 10]
+     @test isapprox(ps.lrow, T[-55/10, -10], atol = 1e-12)
+
+     @test ps.pb0.arows[1].nzind == [1, 2]
+     @test isapprox(ps.pb0.arows[1].nzval, T[1, -9//10], atol = 1e-12)
+     @test ps.pb0.arows[2].nzind == [1, 2, 3]
+     @test ps.pb0.arows[2].nzval == T[1, 2, 3]
+
+
+     @test ps.pb0.acols[1].nzind == [1, 2]
+     @test ps.pb0.acols[1].nzval == T[1, 1]
+     @test ps.pb0.acols[2].nzind == [1, 2]
+     @test isapprox(ps.pb0.acols[2].nzval, T[-9//10,2], atol = 1e-12)
+     @test ps.pb0.acols[3].nzind == [2]
+     @test ps.pb0.acols[3].nzval == T[3]
+
+     @test ps.rowflag[1] == true
+     @test ps.rowflag[2] == true
+
+     @test ps.colflag[1] == true
+     @test ps.colflag[2] == true
+     @test ps.colflag[3] == true
+
+     return nothing
+end
 @testset "Coefficient Strengthening" begin
     for T in COEFF_TYPES
         @testset "$T" begin coef_strengthen_test1(T) end
         @testset "$T" begin coef_strengthen_test2(T) end
         @testset "$T" begin coef_strengthen_test3(T) end
+        @testset "$T" begin coef_strengthen_test4(T) end
     end
 end
