@@ -138,7 +138,7 @@ function zero_coefficient_strengthening!(ps::PresolveData{T}) where {T}
                     ps.pb0.acols[j].nzval[i_index[j]] = new_coef
                     ps.urow[i] = new_bound
                     #update nonzero
-                    if new_coef == 0
+                    if !iszero(coef) && iszero(new_coef)
                         ps.nzrow[i] -= 1
                         ps.nzcol[j] -= 1
                     end
