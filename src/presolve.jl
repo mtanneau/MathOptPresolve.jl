@@ -415,7 +415,7 @@ function presolve!(ps::PresolveData{T}) where {T}
     # Round the bounds of integer variables are integers.
     round_integer_bounds!(ps)
 
-    # Coeficient strengthening
+    # Coefficient strengthening
     coefficient_strengthening!(ps)
 
     # Check bound consistency on all rows/columns
@@ -735,7 +735,7 @@ end
 Perform coefficient strengthening for integer/binary variables
 on every constraints.
 
-Called once at the very beginning of the presolve procedure.
+Called once at the beginning of the presolve procedure.
 """
 
 function coefficient_strengthening!(ps::PresolveData{T}) where {T}

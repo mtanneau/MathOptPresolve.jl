@@ -1,8 +1,8 @@
 """
 Perform coefficient strengthening on each row and on each integer variable.
 
-In particular, for the i-th constraints of the form
-aᵢ x ⩽ bᵢ and let xⱼ be a integer/binary variable
+In particular, we consider the i-th constraints of the form
+aᵢ x ⩽ bᵢ and where xⱼ is a integer/binary variable.
 If aᵢⱼ ⩾ d = bᵢ - Mᵢⱼ - aᵢⱼ (uⱼ - 1) > 0
 where Mᵢⱼ is maximal activity of the i-th row without considering xⱼ
 and uⱼ is upper bound of xⱼ, then we transform
@@ -31,8 +31,9 @@ function maximal_activity(ps::PresolveData{T}, i::Int)::T where {T}
         elseif aij < zero(T)
             sup += aij * ps.lcol[j]
         end
+        isfinite(sup) || return sup
     end
-    return T(sup)
+    return sup
 end
 
 function minimal_activity(ps::PresolveData{T}, i::Int)::T where {T}
@@ -46,12 +47,13 @@ function minimal_activity(ps::PresolveData{T}, i::Int)::T where {T}
         elseif aij < zero(T)
             inf += aij * ps.ucol[j]
         end
+        isfinite(inf) || return inf
     end
-    return T(inf)
+    return inf
 end
 
 function upperbound_strengthening(ps::PresolveData{T}, i::Int, j::Int, coef, max_act::T) where {T}
-    # perform coef strengthening for one constraints of the from a'x <= u
+    # perform coef strengthening for one constraint of the form a'x <= u
     new_bound = ps.urow[i]
     new_coef = coef
     if coef > 0
@@ -71,7 +73,7 @@ function upperbound_strengthening(ps::PresolveData{T}, i::Int, j::Int, coef, max
 end
 
 function lowerbound_strengthening(ps::PresolveData{T}, i::Int, j::Int, coef, min_act::T) where {T}
-    # perform coef strengthening for one constraints of the from l < = a'x
+    # perform coef strengthening for one constraint of the form l < = a'x
     new_bound = ps.lrow[i]
     new_coef = coef
     if coef > 0
@@ -91,8 +93,8 @@ function lowerbound_strengthening(ps::PresolveData{T}, i::Int, j::Int, coef, min
 end
 
 function zero_coefficient_strengthening!(ps::PresolveData{T}) where {T}
-    # perform coefficient stregthening but if there is a coefficient is reduced to 0
-    # it is still kept in the ps.pb0.arows and ps.pb0.acols
+    # perform coefficient stregthening but if there is a coefficient that is reduced to 0
+    # it is explicitly stored in the ps.pb0.arows and ps.pb0.acols
 
     # keep track of index for each var fo update ps.acols
     # use this to find which index of ps.pb0.acols[i].nzval to update
