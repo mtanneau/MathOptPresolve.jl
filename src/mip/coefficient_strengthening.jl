@@ -20,38 +20,6 @@ and the number of nonzeros in each row/column is updated.
 If a row/column is reduced to 0 after this step, it will be set to be inactive.
 """
 
-function maximal_activity(ps::PresolveData{T}, i::Int)::T where {T}
-    sup = zero(T)
-
-    row = ps.pb0.arows[i]
-    for (j, aij) in zip(row.nzind, row.nzval)
-        ps.colflag[j] || continue
-        if aij > zero(T)
-            sup += aij * ps.ucol[j]
-        elseif aij < zero(T)
-            sup += aij * ps.lcol[j]
-        end
-        isfinite(sup) || return sup
-    end
-    return sup
-end
-
-function minimal_activity(ps::PresolveData{T}, i::Int)::T where {T}
-    inf = zero(T)
-
-    row = ps.pb0.arows[i]
-    for (j, aij) in zip(row.nzind, row.nzval)
-        ps.colflag[j] || continue
-        if aij > zero(T)
-            inf += aij * ps.lcol[j]
-        elseif aij < zero(T)
-            inf += aij * ps.ucol[j]
-        end
-        isfinite(inf) || return inf
-    end
-    return inf
-end
-
 function upperbound_strengthening(ps::PresolveData{T}, i::Int, j::Int, coef, max_act::T) where {T}
     # perform coef strengthening for one constraint of the form a'x <= u
     new_bound = ps.urow[i]
@@ -92,9 +60,20 @@ function lowerbound_strengthening(ps::PresolveData{T}, i::Int, j::Int, coef, min
     return new_coef, new_bound
 end
 
-function zero_coefficient_strengthening!(ps::PresolveData{T}) where {T}
+"""
+    coefficient_strengthening!(ps::PresolveData)
+
+Perform coefficient strengthening for integer/binary variables
+in every constraint.
+
+Called once at the beginning of the presolve procedure.
+"""
+
+function coefficient_strengthening!(ps::PresolveData{T}) where {T}
     # perform coefficient stregthening but if there is a coefficient that is reduced to 0
     # it is explicitly stored in the ps.pb0.arows and ps.pb0.acols
+
+    ps.pb0.is_continuous && return nothing
 
     # keep track of index for each var to update ps.acols
     # use this to find which index of ps.pb0.acols[i].nzval to update

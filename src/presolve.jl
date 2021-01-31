@@ -728,33 +728,3 @@ function remove_dominated_columns!(ps::PresolveData{T}) where {T}
     end
     return nothing
 end
-
-"""
-    coefficient_strengthening!(ps::PresolveData)
-
-Perform coefficient strengthening for integer/binary variables
-on every constraints.
-
-Called once at the beginning of the presolve procedure.
-"""
-
-function coefficient_strengthening!(ps::PresolveData{T}) where {T}
-    ps.pb0.is_continuous && return nothing
-
-    zero_coefficient_strengthening!(ps)
-
-    # inactive rows
-    for (i, row) in enumerate(ps.pb0.arows)
-        if all(row.nzval .== 0)
-            ps.rowflag[i] = false
-        end
-    end
-    # inactive cols
-    for (j, col) in enumerate(ps.pb0.acols)
-        if all(col.nzval .== 0)
-            ps.colflag[j] = false
-        end
-    end
-
-    return nothing
-end
