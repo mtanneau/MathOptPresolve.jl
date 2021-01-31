@@ -421,7 +421,7 @@ function presolve!(ps::PresolveData{T}) where {T}
     # I. Remove all fixed variables, empty rows and columns
     @_return_if_inferred apply!(ps, RemoveFixedVariables(), config)
     @_return_if_inferred apply!(ps, RemoveEmptyRows(), config)
-    @_return_if_inferred remove_empty_columns!(ps)
+    @_return_if_inferred apply!(ps, RemoveEmptyColumns(), config)
 
     # Identify row singletons
     ps.row_singletons = [i for (i, nz) in enumerate(ps.nzrow) if ps.rowflag[i] && nz == 1]
@@ -435,7 +435,7 @@ function presolve!(ps::PresolveData{T}) where {T}
         @debug "Presolve pass $npasses" ps.nrow ps.ncol
         round_integer_bounds!(ps)
         @_return_if_inferred bounds_consistency_checks!(ps)
-        @_return_if_inferred remove_empty_columns!(ps)
+        @_return_if_inferred apply!(ps, RemoveEmptyColumns(), config)
 
 
         # Remove all fixed variables
@@ -458,7 +458,7 @@ function presolve!(ps::PresolveData{T}) where {T}
         @_return_if_inferred remove_dominated_columns!(ps)
     end
 
-    @_return_if_inferred remove_empty_columns!(ps)
+    @_return_if_inferred apply!(ps, RemoveEmptyColumns(), config)  # Why this here??
 
     @debug("Presolved problem info",
         ps.pb0.ncon, ps.nrow,
@@ -594,23 +594,6 @@ function bounds_consistency_checks!(ps::PresolveData{T}) where {T}
 end
 
 """
-    remove_empty_columns!(ps::PresolveData)
-
-Remove all empty columns.
-
-Called once at the beginning of the presolve procedure.
-If an empty column is created later, it is removed on the spot.
-"""
-function remove_empty_columns!(ps::PresolveData{T}) where {T}
-    for j in 1:ps.pb0.nvar
-        remove_empty_column!(ps, j)
-        ps.status == NOT_INFERRED || break
-    end
-    return nothing
-end
-
-
-"""
     round_integer_bounds!(ps::PresolveData)
 
 Ensure all columns with integer variables having integer bounds.
@@ -681,7 +664,7 @@ function remove_dominated_columns!(ps::PresolveData{T}) where {T}
         iszero(aij) && continue  # empty column
 
         # Strengthen dual bounds
-        #= 
+        #=
 
         =#
         cj = ps.obj[j]

@@ -7,5 +7,7 @@ CurrentModule = MathOptPresolve
 ```@docs
 RemoveEmptyRow
 RemoveEmptyRows
+RemoveEmptyColumn
+RemoveEmptyColumns
 FixSingleVariable
 ```
