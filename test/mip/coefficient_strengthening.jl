@@ -231,9 +231,11 @@ function coef_strengthen_test4(T::Type)
 end
 @testset "Coefficient Strengthening" begin
     for T in COEFF_TYPES
-        @testset "$T" begin coef_strengthen_test1(T) end
-        @testset "$T" begin coef_strengthen_test2(T) end
-        @testset "$T" begin coef_strengthen_test3(T) end
-        @testset "$T" begin coef_strengthen_test4(T) end
+        @testset "$T" begin
+            coef_strengthen_test1(T)
+            coef_strengthen_test2(T)
+            coef_strengthen_test3(T)
+            coef_strengthen_test4(T)
+        end
     end
 end
