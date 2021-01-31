@@ -96,7 +96,7 @@ function zero_coefficient_strengthening!(ps::PresolveData{T}) where {T}
     # perform coefficient stregthening but if there is a coefficient that is reduced to 0
     # it is explicitly stored in the ps.pb0.arows and ps.pb0.acols
 
-    # keep track of index for each var fo update ps.acols
+    # keep track of index for each var to update ps.acols
     # use this to find which index of ps.pb0.acols[i].nzval to update
     i_index = zeros(Int, ps.pb0.nvar)
 
