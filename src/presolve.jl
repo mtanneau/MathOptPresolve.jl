@@ -319,6 +319,7 @@ include("lp/free_column_singleton.jl")
 include("lp/dominated_column.jl")
 
 include("mip/round_integer_bounds.jl")
+include("mip/coefficient_strengthening.jl")
 
 
 """
@@ -413,6 +414,9 @@ function presolve!(ps::PresolveData{T}) where {T}
 
     # Round the bounds of integer variables are integers.
     round_integer_bounds!(ps)
+
+    # Coefficient strengthening
+    coefficient_strengthening!(ps)
 
     # Check bound consistency on all rows/columns
     st = bounds_consistency_checks!(ps)
@@ -625,6 +629,7 @@ function round_integer_bounds!(ps::PresolveData{T}) where {T}
     for j in 1:ps.pb0.nvar
         round_integer_bounds!(ps, j)
     end
+
     return nothing
 end
 
@@ -681,7 +686,7 @@ function remove_dominated_columns!(ps::PresolveData{T}) where {T}
         iszero(aij) && continue  # empty column
 
         # Strengthen dual bounds
-        #= 
+        #=
 
         =#
         cj = ps.obj[j]
