@@ -1,7 +1,7 @@
-function emtpy_column_tests(T::Type)
+function empty_column_tests(T::Type)
 
     # We test all the following combinations:
-    #= 
+    #=
         min          c * x
         s.t.    lb ≤     x ≤ ub
 
@@ -14,11 +14,12 @@ function emtpy_column_tests(T::Type)
         (-∞, +∞)    | -∞  | +∞  |  0
         ( l,  u)    |  l  |  u  |  l
         ( l, +∞)    |  l  | +∞  |  l
-        ------------------------------ =#
+        ------------------------------
+    =#
     function build_problem(l, u, c)
-        pb = MathOptPresolve.ProblemData{T}()
+        pb = MOP.ProblemData{T}()
 
-        MathOptPresolve.load_problem!(pb, "Test",
+        MOP.load_problem!(pb, "Test",
             true, [c], zero(T),
             spzeros(T, 0, 1), T[], T[], [l], [u],
         )
@@ -32,10 +33,11 @@ function emtpy_column_tests(T::Type)
         @testset "$((l, u, c))" begin
             pb = build_problem(l, u, c)
 
-            ps = MathOptPresolve.PresolveData(pb)
+            ps = MOP.PresolveData(pb)
+            config = MOP.PresolveOptions{T}()
 
             # Remove empty variable
-            MathOptPresolve.remove_empty_column!(ps, 1)
+            MOP.apply!(ps, MOP.RemoveEmptyColumn(1), config)
 
             if c > 0 && !isfinite(l)
                 @test ps.status == MOP.DUAL_INFEASIBLE
@@ -64,7 +66,7 @@ function emtpy_column_tests(T::Type)
                 # Check that operation was recorded correctly
                 @test length(ps.ops) == 1
                 op = ps.ops[1]
-                @test isa(op, MathOptPresolve.EmptyColumn)
+                @test isa(op, MOP.EmptyColumn)
                 @test op.j == 1
             end
         end  # testset
@@ -75,6 +77,6 @@ end
 
 @testset "Empty column" begin
     for T in COEFF_TYPES
-        @testset "$T" begin emtpy_column_tests(T) end
+        @testset "$T" begin empty_column_tests(T) end
     end
 end
