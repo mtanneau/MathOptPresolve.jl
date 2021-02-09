@@ -1,35 +1,87 @@
-function _build_model(T::Type)
-    # min  x[1]
-    # s.t. x[1] >= -1
-    #      -1 <= x[2] <= 3
-    #      x[3] <= 1.2
-    # .    x[3] in Z
-    #      2.0 x[2] == 2.5
-    model = MOIU.Model{T}()
-    n = 3
-    vis = MOI.add_variables(model, n)
-    x = [MOI.SingleVariable(vis[i]) for i = 1:n]
-    MOI.add_constraint(model, x[3], MOI.Integer())
-    MOI.add_constraint(model, x[1], MOI.GreaterThan{T}(-1.0))
-    MOI.add_constraint(model, x[2], MOI.Interval{T}(-1.0, 3.0))
-    MOI.add_constraint(model, x[3], MOI.LessThan{T}(1.2))
-    MOI.add_constraint(model, T(2.0) * x[2], MOI.EqualTo{T}(2.5))
-    # TODO: Test when objective is not set
-    MOI.set(model, MOI.ObjectiveFunction{MOI.ScalarAffineFunction{T}}(), x[1])
-    MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
-    return model
+function _is_approx_integral(x::Real)
+    x_c = ceil(Int, x)
+    x_f = floor(Int, x)
+    return abs(x - x_c) ≈ 0 || abs(x - x_f) ≈ 0
 end
 
 @testset "presolve!" begin
     for T in COEFF_TYPES
-        src = _build_model(T)
-        dest = MOIU.Model{T}()
-        MOP.presolve!(dest, src, T)
-        @test MOI.get(dest, MOI.NumberOfVariables()) == 0
-        @test MOI.get(dest, MOI.ListOfConstraints()) == []
-        @test MOI.get(dest, MOI.ObjectiveSense()) == MOI.FEASIBILITY_SENSE
-        obj = MOI.get(dest, MOI.ObjectiveFunction{MOI.ScalarAffineFunction{T}}())
-        @test obj.terms == []
-        @test obj.constant ≈ -1.0
+        @testset "solved" begin
+            src = MOIU.Model{T}()
+            n = 3
+            vis = MOI.add_variables(src, n)
+            x = [MOI.SingleVariable(vis[i]) for i = 1:n]
+            MOI.add_constraint(src, x[3], MOI.Integer())
+            MOI.add_constraint(src, x[1], MOI.GreaterThan{T}(-1.0))
+            MOI.add_constraint(src, x[2], MOI.Interval{T}(-1.0, 3.0))
+            MOI.add_constraint(src, x[3], MOI.LessThan{T}(1.2))
+            MOI.add_constraint(src, T(2.0) * x[2], MOI.EqualTo{T}(2.5))
+            MOI.set(src, MOI.ObjectiveFunction{MOI.ScalarAffineFunction{T}}(), x[1])
+            MOI.set(src, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+
+            dest = MOIU.Model{T}()
+            status, soln_map = MOP.presolve!(dest, src, T)
+
+            @test status == MOI.OPTIMAL
+            x = soln_map(T[])
+            @test length(x) == 3
+            @test x[1] ≈ T(-1.0)
+            @test x[2] ≈ T(2.5 / 2.0)
+            @test x[3] <= 1.2
+            @test _is_approx_integral(x[3])
+
+            @test_throws ArgumentError soln_map(T[1.0])
+        end
+        @testset "infeasible" begin
+            src = MOIU.Model{T}()
+            n = 5
+            vis = MOI.add_variables(src, n)
+            x = [MOI.SingleVariable(vis[i]) for i = 1:n]
+            MOI.add_constraint(src, x[1], MOI.Interval{T}(0.0, 1.0))
+            MOI.add_constraint(src, T(3.0) * x[1] + T(3.0), MOI.LessThan{T}(0.0))
+
+            dest = MOIU.Model{T}()
+            status, soln_map = MOP.presolve!(dest, src, T)
+
+            @test status == MOI.INFEASIBLE
+            @test MOI.is_empty(dest)
+            @test_throws ArgumentError soln_map(T[])
+        end
+        @testset "unbounded" begin
+            src = MOIU.Model{T}()
+            vi = MOI.add_variable(src)
+            x = MOI.SingleVariable(vi)
+            MOI.add_constraint(src, x, MOI.GreaterThan{T}(2.0))
+            MOI.set(src, MOI.ObjectiveFunction{MOI.ScalarAffineFunction{T}}(), x)
+            MOI.set(src, MOI.ObjectiveSense(), MOI.MAX_SENSE)
+
+            dest = MOIU.Model{T}()
+            status, soln_map = MOP.presolve!(dest, src, T)
+
+            @test status == MOI.DUAL_INFEASIBLE
+            @test MOI.is_empty(dest)
+            # Question: I would think that this actually work, and not throw?
+            @test_throws ArgumentError soln_map(T[])
+        end
+        @testset "not inferred" begin
+            src = MOIU.Model{T}()
+            n = 3
+            vis = MOI.add_variables(src, n)
+            x = [MOI.SingleVariable(vis[i]) for i = 1:n]
+            MOI.add_constraint(src, T(1.0) * x[1] + T(1.0) * x[2], MOI.GreaterThan{T}(0.0))
+            MOI.add_constraint(src, T(1.0) * x[1] - T(1.0) * x[2], MOI.GreaterThan{T}(0.0))
+            MOI.add_constraint(src, T(2.3) * x[3], MOI.EqualTo{T}(2.3))
+            MOI.set(
+                src,
+                MOI.ObjectiveFunction{MOI.ScalarAffineFunction{T}}(),
+                T(1.0) * x[2] + T(1.0) * x[3],
+            )
+            MOI.set(src, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+
+            dest = MOIU.Model{T}()
+            status, soln_map = MOP.presolve!(dest, src, T)
+
+            @test status == MOI.OPTIMIZE_NOT_CALLED
+        end
     end
 end

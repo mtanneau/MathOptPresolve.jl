@@ -36,8 +36,8 @@ function add_row!(ir::IntermediaryRepresentation)::Int
         @assert isempty(ir.ucon)
         return 1
     else
-        row_num = I[end]
-        @assert row_num == length(lcon) == length(ucon)
+        row_num = ir.I[end]
+        @assert row_num == length(ir.lcon) == length(ir.ucon)
         return row_num + 1
     end
 end
@@ -139,6 +139,30 @@ function process_constraint!(
     return process_constraint!(ir, MOIU.scalarize(f), MOIU.scalarize(s))
 end
 
+"""
+    presolve!(dest::MOI.ModelLike, src::MOI.ModelLike, T::Type{<:Real})
+
+Apply presolve to `src` model, and populate `dest` with the reduced problem.
+The type `T` specifies the data type used to represent the objective,
+constraints, etc. added to `dest`.
+
+Returns:
+
+1. The model status, of type `MOI.TerminationStatusCode`, of the presolve
+routine. If the problem is solved, or proven infeasible or unbounded, that will
+be communicated to the caller here. If the problem status is not inferred after
+presolve, the status will be `MOI.OPTIMIZE_NOT_CALLED`.
+2. A function with the signature `Vector{T} -> Vector{T}`. The argument should
+correspond to a feasible solution for the reduced problem (say, coming from a
+solver that was run on the reduced problem). The function returns that value
+mapped back to the original problem. If the problem was solved to optimality
+(i.e. the model status is `MOI.OPTIMAL`), then the argument must be an empty
+vector.
+
+Notes:
+
+* The function will throw an `ArgumentError` if `dest` is not empty.
+"""
 function presolve!(dest::MOI.ModelLike, src::MOI.ModelLike, T::Type{<:Real})
     @assert MOI.is_empty(dest)
 
@@ -179,12 +203,12 @@ function presolve!(dest::MOI.ModelLike, src::MOI.ModelLike, T::Type{<:Real})
     if ps.status == OPTIMAL
         model_status = MOI.OPTIMAL
     elseif ps.status == PRIMAL_INFEASIBLE
-        model_status = MOI.PRIMAL_INFEASIBLE
+        model_status = MOI.INFEASIBLE
     elseif ps.status == DUAL_INFEASIBLE
         model_status = MOI.DUAL_INFEASIBLE
     else
         @assert ps.status == NOT_INFERRED
-        @assert moi_status == MOI.OPTIMIZE_NOT_CALLED
+        @assert model_status == MOI.OPTIMIZE_NOT_CALLED
         extract_reduced_problem!(ps)
 
         pd = ps.pb_red
@@ -204,13 +228,13 @@ function presolve!(dest::MOI.ModelLike, src::MOI.ModelLike, T::Type{<:Real})
         MOI.set(dest, MOI.ObjectiveSense(), pd.objsense ? MOI.MIN_SENSE : MOI.MAX_SENSE)
         MOI.set(
             dest,
-            MOI.ObjectiveFunction{MOI.ScalarAffineFunction{T}},
+            MOI.ObjectiveFunction{MOI.ScalarAffineFunction{T}}(),
             sum(pd.obj[i] * x[i] for i = 1:pd.nvar) + pd.obj0,
         )
         for i = 1:pd.ncon
             row = pd.arows[i]
             lb, ub = pd.lcon[i], pd.ucon[i]
-            set = (
+            scalar_set = (
                 if lb == T(-Inf)
                     MOI.LessThan{T}(ub)
                 elseif ub == T(Inf)
@@ -232,28 +256,38 @@ function presolve!(dest::MOI.ModelLike, src::MOI.ModelLike, T::Type{<:Real})
 end
 
 function _postsolve_fn(ps::PresolveData{T}, x::Vector{T}) where {T}
-    if ps.model_status == OPTIMAL
-        @assert ps.primal_status == FEASIBLE_POINT
+    if ps.status == OPTIMAL
+        @assert ps.solution !== nothing
+        @assert ps.solution.primal_status == FEASIBLE_POINT
         if !isempty(x)
-            throw(ArgumentError("Presolve solved model to optimality; postsolve expects an empty input argument."))
+            throw(
+                ArgumentError(
+                    "Presolve solved model to optimality; postsolve expects an empty input argument.",
+                ),
+            )
         end
-        return ps.solution.x
-    elseif ps.model_status == PRIMAL_INFEASIBLE
+    elseif ps.status == PRIMAL_INFEASIBLE
         throw(ArgumentError("Presolve solved proven infeasible; cannot postsolve."))
-    elseif ps.model_status == DUAL_INFEASIBLE
-        @assert ps.is_primal_ray
-        @assert ps.primal_status == INFEASIBILITY_CERTIFICATE
-        return ps.solution.x
+    elseif ps.status == DUAL_INFEASIBLE
+        @assert ps.solution !== nothing
+        @assert ps.solution.is_primal_ray
+        @assert ps.solution.primal_status == INFEASIBILITY_CERTIFICATE
     else
-        @assert ps.model_status == NOT_INFERRED
-        orig_sol = Solution(ps.pb0.m, ps.pb0.n)
-        trans_sol = Solution(ps.nrow, ps.ncol)
-        trans_sol.primal_status = FEASIBLE_POINT
-        trans_sol.x = x
-        postsolve!(orig_sol, trans_sol, ps)
-        @assert orig_sol.primal_status == FEASIBLE_POINT
-        @assert !ps.solution.is_primal_ray
-        @assert !ps.solution.is_dual_ray
-        return orig_sol.x
+        @assert ps.status == NOT_INFERRED
     end
+    @show ps
+    if length(x) != ps.ncol
+        throw(
+            ArgumentError(
+                "Transformed solution is of length $(length(x)); expected one of length $(ps.ncol)",
+            ),
+        )
+    end
+    orig_sol = Solution{T}(ps.pb0.ncon, ps.pb0.nvar)
+    trans_sol = Solution{T}(ps.nrow, ps.ncol)
+    trans_sol.primal_status = FEASIBLE_POINT
+    trans_sol.x = x
+    postsolve!(orig_sol, trans_sol, ps)
+    @assert orig_sol.primal_status == FEASIBLE_POINT
+    return orig_sol.x
 end
