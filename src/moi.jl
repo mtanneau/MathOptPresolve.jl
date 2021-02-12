@@ -232,7 +232,9 @@ Notes:
 * The function will throw an `ArgumentError` if `dest` is not empty.
 """
 function presolve!(dest::MOI.ModelLike, src::MOI.ModelLike, T::Type{<:Real})
-    @assert MOI.is_empty(dest)
+    if !MOI.is_empty(dest)
+        throw(ArgumentError("Destination model is not empty."))
+    end
 
     objsense = MOI.get(src, MOI.ObjectiveSense())
     obj = MOI.get(src, MOI.ObjectiveFunction{MOI.ScalarAffineFunction{T}}())
