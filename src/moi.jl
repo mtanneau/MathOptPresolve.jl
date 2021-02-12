@@ -139,25 +139,93 @@ function process_constraint!(
     return process_constraint!(ir, MOIU.scalarize(f), MOIU.scalarize(s))
 end
 
+struct PresolveResult{T}
+    pd::PresolveData{T}
+end
+
+function get_status(pr::PresolveResult)
+    if pr.pd.status == OPTIMAL
+        return MOI.OPTIMAL
+    elseif pr.pd.status == PRIMAL_INFEASIBLE
+        return MOI.INFEASIBLE
+    elseif pr.pd.status == DUAL_INFEASIBLE
+        return MOI.DUAL_INFEASIBLE
+    else
+        @assert pr.pd.status == NOT_INFERRED
+        return MOI.OPTIMIZE_NOT_CALLED
+    end
+end
+
+function get_optimal_solution(pr::PresolveResult{T}) where {T}
+    if get_status(pr) != MOI.OPTIMAL
+        error(
+            "Presolve did not solve problem to optimality, so you cannot query an optimal solution.",
+        )
+    end
+    @assert pr.pd.solution !== nothing
+    @assert pr.pd.solution.primal_status == FEASIBLE_POINT
+    @assert pr.pd.nrow == pr.pd.ncol == 0
+    orig_sol = _post_crush(pr.pd, pr.pd.solution)
+    @assert orig_sol.primal_status == FEASIBLE_POINT
+    return orig_sol.x
+end
+
+function get_unbounded_ray(pr::PresolveResult{T}) where {T}
+    if get_status(pr) != MOI.DUAL_INFEASIBLE
+        error("Presolve did not prove unboundedness, so you cannot query an unbounded ray.")
+    end
+    @assert pr.pd.solution !== nothing
+    @assert pr.pd.solution.is_primal_ray
+    @assert pr.pd.solution.primal_status == INFEASIBILITY_CERTIFICATE
+    orig_sol = _post_crush(pr.pd, pr.pd.solution)
+    @assert orig_sol.primal_status == INFEASIBILITY_CERTIFICATE
+    return orig_sol.x
+end
+
+function get_infeasibility_certificate(pr::PresolveResult{T}) where {T}
+    if get_status(pr) != MOI.INFEASIBLE
+        error(
+            "Presolve did not prove infeasibility, so you cannot query an infeasibility certificate.",
+        )
+    end
+    error("Not yet implemented. Come back soon!")
+    @assert pr.pd.solution !== nothing
+    @assert pr.pd.solution.is_dual_ray
+    @assert pr.pd.solution.dual_status == INFEASIBILITY_CERTIFICATE
+    return _post_crush(pr.pd, pr.pd.solution)
+end
+
+function post_crush(pr::PresolveResult{T}, x::Vector{T}) where {T}
+    if length(x) != pr.pd.ncol
+        throw(
+            ArgumentError(
+                "Transformed solution is of length $(length(x)); expected one of length $(pr.pd.ncol).",
+            ),
+        )
+    end
+    trans_sol = Solution{T}(pr.pd.nrow, pr.pd.ncol)
+    trans_sol.primal_status = FEASIBLE_POINT
+    trans_sol.x = x
+    return _post_crush(pr.pd, trans_sol).x
+end
+
+function _post_crush(pd::PresolveData{T}, trans_sol::Solution{T}) where {T}
+    orig_sol = Solution{T}(pd.pb0.ncon, pd.pb0.nvar)
+    postsolve!(orig_sol, trans_sol, pd)
+    return orig_sol
+end
+
 """
-    presolve!(dest::MOI.ModelLike, src::MOI.ModelLike, T::Type{<:Real})
+    presolve!(dest::MOI.ModelLike, src::MOI.ModelLike, T::Type{<:Real})::PresolveResult
 
 Apply presolve to `src` model, and populate `dest` with the reduced problem.
 The type `T` specifies the data type used to represent the objective,
 constraints, etc. added to `dest`.
 
-Returns:
-
-1. The model status, of type `MOI.TerminationStatusCode`, of the presolve
-routine. If the problem is solved, or proven infeasible or unbounded, that will
-be communicated to the caller here. If the problem status is not inferred after
-presolve, the status will be `MOI.OPTIMIZE_NOT_CALLED`.
-2. A function with the signature `Vector{T} -> Vector{T}`. The argument should
-correspond to a feasible solution for the reduced problem (say, coming from a
-solver that was run on the reduced problem). The function returns that value
-mapped back to the original problem. If the problem was solved to optimality
-(i.e. the model status is `MOI.OPTIMAL`), then the argument must be an empty
-vector.
+Returns a `PresolveResult` result object. You may query the status of the model
+after the presolve routine (`get_status`), and depending on this status, also
+query the relevant solution information (with `get_optimal_solution`,
+`get_unbounded_ray`, and `get_infeasibility_certificate`).
 
 Notes:
 
@@ -198,27 +266,13 @@ function presolve!(dest::MOI.ModelLike, src::MOI.ModelLike, T::Type{<:Real})
     )
     ps = PresolveData(pd)
     presolve!(ps)
-    MOI.empty!(dest)
-    model_status = MOI.OPTIMIZE_NOT_CALLED
-    if ps.status == OPTIMAL
-        model_status = MOI.OPTIMAL
-    elseif ps.status == PRIMAL_INFEASIBLE
-        model_status = MOI.INFEASIBLE
-    elseif ps.status == DUAL_INFEASIBLE
-        model_status = MOI.DUAL_INFEASIBLE
-    else
-        @assert ps.status == NOT_INFERRED
-        @assert model_status == MOI.OPTIMIZE_NOT_CALLED
+    if ps.status != OPTIMAL
         extract_reduced_problem!(ps)
-
         pd = ps.pb_red
-        @assert pd.nvar > 0
-        MOI.empty!(dest)
-
         vis = MOI.add_variables(dest, pd.nvar)
         x = [MOI.SingleVariable(vis[j]) for j = 1:pd.nvar]
         for j = 1:pd.nvar
-            MOI.add_constraint(dest, x[j], MOI.Interval{T}(pd.lvar[j], pd.lcon[j]))
+            MOI.add_constraint(dest, x[j], MOI.Interval{T}(pd.lvar[j], pd.uvar[j]))
             if pd.var_types[j] == BINARY
                 MOI.add_constraint(dest, x[j], MOI.ZeroOne())
             elseif pd.var_types[j] == GENERAL_INTEGER
@@ -252,42 +306,5 @@ function presolve!(dest::MOI.ModelLike, src::MOI.ModelLike, T::Type{<:Real})
             )
         end
     end
-    return model_status, x -> _postsolve_fn(ps, x)
-end
-
-function _postsolve_fn(ps::PresolveData{T}, x::Vector{T}) where {T}
-    if ps.status == OPTIMAL
-        @assert ps.solution !== nothing
-        @assert ps.solution.primal_status == FEASIBLE_POINT
-        if !isempty(x)
-            throw(
-                ArgumentError(
-                    "Presolve solved model to optimality; postsolve expects an empty input argument.",
-                ),
-            )
-        end
-    elseif ps.status == PRIMAL_INFEASIBLE
-        throw(ArgumentError("Presolve solved proven infeasible; cannot postsolve."))
-    elseif ps.status == DUAL_INFEASIBLE
-        @assert ps.solution !== nothing
-        @assert ps.solution.is_primal_ray
-        @assert ps.solution.primal_status == INFEASIBILITY_CERTIFICATE
-    else
-        @assert ps.status == NOT_INFERRED
-    end
-    @show ps
-    if length(x) != ps.ncol
-        throw(
-            ArgumentError(
-                "Transformed solution is of length $(length(x)); expected one of length $(ps.ncol)",
-            ),
-        )
-    end
-    orig_sol = Solution{T}(ps.pb0.ncon, ps.pb0.nvar)
-    trans_sol = Solution{T}(ps.nrow, ps.ncol)
-    trans_sol.primal_status = FEASIBLE_POINT
-    trans_sol.x = x
-    postsolve!(orig_sol, trans_sol, ps)
-    @assert orig_sol.primal_status == FEASIBLE_POINT
-    return orig_sol.x
+    return PresolveResult{T}(ps)
 end

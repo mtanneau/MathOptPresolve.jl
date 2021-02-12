@@ -20,17 +20,20 @@ end
             MOI.set(src, MOI.ObjectiveSense(), MOI.MIN_SENSE)
 
             dest = MOIU.Model{T}()
-            status, soln_map = MOP.presolve!(dest, src, T)
+            pr = @inferred MOP.presolve!(dest, src, T)
 
-            @test status == MOI.OPTIMAL
-            x = soln_map(T[])
-            @test length(x) == 3
-            @test x[1] ≈ T(-1.0)
-            @test x[2] ≈ T(2.5 / 2.0)
-            @test x[3] <= 1.2
-            @test _is_approx_integral(x[3])
+            @test get_status(pr) == MOI.OPTIMAL
+            for x in (get_optimal_solution(pr), post_crush(pr, T[]))
+                @test length(x) == 3
+                @test x[1] ≈ T(-1.0)
+                @test x[2] ≈ T(2.5 / 2.0)
+                @test x[3] <= 1.2
+                @test _is_approx_integral(x[3])
+            end
 
-            @test_throws ArgumentError soln_map(T[1.0])
+            @test_throws ArgumentError post_crush(pr, T[1.0])
+            @test_throws ErrorException get_unbounded_ray(pr)
+            @test_throws ErrorException get_infeasibility_certificate(pr)
         end
         @testset "infeasible" begin
             src = MOIU.Model{T}()
@@ -41,11 +44,13 @@ end
             MOI.add_constraint(src, T(3.0) * x[1] + T(3.0), MOI.LessThan{T}(0.0))
 
             dest = MOIU.Model{T}()
-            status, soln_map = MOP.presolve!(dest, src, T)
+            pr = @inferred MOP.presolve!(dest, src, T)
 
-            @test status == MOI.INFEASIBLE
-            @test MOI.is_empty(dest)
-            @test_throws ArgumentError soln_map(T[])
+            @test get_status(pr) == MOI.INFEASIBLE
+
+            @test_throws ArgumentError post_crush(pr, T[])
+            @test_throws ErrorException get_optimal_solution(pr)
+            @test_throws ErrorException get_unbounded_ray(pr)
         end
         @testset "unbounded" begin
             src = MOIU.Model{T}()
@@ -56,12 +61,11 @@ end
             MOI.set(src, MOI.ObjectiveSense(), MOI.MAX_SENSE)
 
             dest = MOIU.Model{T}()
-            status, soln_map = MOP.presolve!(dest, src, T)
+            pr = @inferred MOP.presolve!(dest, src, T)
 
-            @test status == MOI.DUAL_INFEASIBLE
-            @test MOI.is_empty(dest)
-            # Question: I would think that this actually work, and not throw?
-            @test_throws ArgumentError soln_map(T[])
+            @test get_status(pr) == MOI.DUAL_INFEASIBLE
+            @test_throws ErrorException get_optimal_solution(pr)
+            @test get_unbounded_ray(pr) ≈ T[1.0]
         end
         @testset "not inferred" begin
             src = MOIU.Model{T}()
@@ -79,9 +83,11 @@ end
             MOI.set(src, MOI.ObjectiveSense(), MOI.MIN_SENSE)
 
             dest = MOIU.Model{T}()
-            status, soln_map = MOP.presolve!(dest, src, T)
+            pr = @inferred MOP.presolve!(dest, src, T)
 
-            @test status == MOI.OPTIMIZE_NOT_CALLED
+            @test get_status(pr) == MOI.OPTIMIZE_NOT_CALLED
+            @test_throws ErrorException get_optimal_solution(pr)
+            @test_throws ErrorException get_unbounded_ray(pr)
         end
     end
 end
