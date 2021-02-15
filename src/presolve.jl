@@ -320,6 +320,7 @@ include("lp/dominated_column.jl")
 
 include("mip/round_integer_bounds.jl")
 include("mip/coefficient_strengthening.jl")
+include("mip/cg_strengthening.jl")
 
 
 """
