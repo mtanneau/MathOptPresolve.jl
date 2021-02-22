@@ -1,5 +1,31 @@
 """
 Perform Chavatal-Gomory strengthening of inequalities
+
+We apply the Chvatal-Goromory procedure to constraints that
+satisfy the following criterions:
+1. All variables with nonzero coefficient must be integral
+2. The constraints are not ranged
+3. If the constraints is of the form ax ⩾ b, then every
+   positive coefficient variables must have finite lowerbound
+   negative coefficient variables must have finite upperbound
+
+   If the constraints is of the from ax ⩽ b, then every
+   positive coefficient variables must have finite upperbound
+   negative coefficient variables must have finite lowerbound
+
+For example, let aᵢx ⩾ bᵢ is a constraint where aᵢ ⩾ 0, and x
+is integer variable. If there exist s > 0 such that
+⌈aᵢⱼ s⌉ bᵢ / ⌈bᵢ s⌉ ⩽ aᵢⱼ
+and there is k such that
+⌈aᵢₖ s⌉ bᵢ / ⌈bᵢ s⌉ < aᵢₖ
+then we will update aᵢx ⩾ bᵢ into ⌈aᵢ s⌉ x ⩾ ⌈bᵢ s⌉
+
+We find such a number s heuristicaly i.e, we try different
+values from the following set
+{1, t/a_max, t/a_min, (2t-1)/(2a_min)| t = 1,...,search_range}
+where a_max = sup(|aᵢ|), a_min = inf(|aᵢ|) and search_range
+is set to be 5 by default
+
 """
 function cg_strengthening!(ps::PresolveData{T}) where {T}
     ps.pb0.is_continuous && return nothing
