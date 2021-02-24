@@ -66,6 +66,8 @@ end
             @test get_status(pr) == MOI.DUAL_INFEASIBLE
             @test_throws ErrorException get_optimal_solution(pr)
             @test get_unbounded_ray(pr) ≈ T[1.0]
+
+            @test post_crush(pr, T[3.4], is_ray = true) ≈ T[3.4]
         end
         @testset "not inferred" begin
             src = MOIU.Model{T}()

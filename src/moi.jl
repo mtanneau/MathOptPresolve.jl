@@ -156,6 +156,12 @@ function get_status(pr::PresolveResult)
     end
 end
 
+"""
+Query the optimal solution produced by presolve. The solution returned is for
+the original, not transformed, problem.
+
+Note: Throws an error if presolve did not terminate with status `MOI.OPTIMAL`.
+"""
 function get_optimal_solution(pr::PresolveResult{T}) where {T}
     if get_status(pr) != MOI.OPTIMAL
         error(
@@ -170,6 +176,13 @@ function get_optimal_solution(pr::PresolveResult{T}) where {T}
     return orig_sol.x
 end
 
+"""
+Query the unbounded ray produced by presolve. The ray returned is for the
+original, not transformed, problem.
+
+Note: Throws an error if presolve did not terminate with status
+`MOI.DUAL_INFEASIBLE`.
+"""
 function get_unbounded_ray(pr::PresolveResult{T}) where {T}
     if get_status(pr) != MOI.DUAL_INFEASIBLE
         error("Presolve did not prove unboundedness, so you cannot query an unbounded ray.")
@@ -189,13 +202,19 @@ function get_infeasibility_certificate(pr::PresolveResult{T}) where {T}
         )
     end
     error("Not yet implemented. Come back soon!")
-    @assert pr.pd.solution !== nothing
-    @assert pr.pd.solution.is_dual_ray
-    @assert pr.pd.solution.dual_status == INFEASIBILITY_CERTIFICATE
-    return _post_crush(pr.pd, pr.pd.solution)
 end
 
-function post_crush(pr::PresolveResult{T}, x::Vector{T}) where {T}
+"""
+    post_crush(pr::PresolveResult{T}, x::Vector{T}; is_ray::Bool=false)
+
+Map a point from the presolved model to the original model. If
+`is_ray = false`, the point should be a feasible point for the presolved model;
+otherwise, it should be an unbounded ray.
+
+Note: Throws an error if the length of `x` is not equal to the number of
+variables in the presolved model.
+"""
+function post_crush(pr::PresolveResult{T}, x::Vector{T}; is_ray::Bool = false) where {T}
     if length(x) != pr.pd.ncol
         throw(
             ArgumentError(
@@ -204,8 +223,9 @@ function post_crush(pr::PresolveResult{T}, x::Vector{T}) where {T}
         )
     end
     trans_sol = Solution{T}(pr.pd.nrow, pr.pd.ncol)
-    trans_sol.primal_status = FEASIBLE_POINT
+    trans_sol.primal_status = is_ray ? INFEASIBILITY_CERTIFICATE : FEASIBLE_POINT
     trans_sol.x = x
+    trans_sol.is_primal_ray = is_ray
     return _post_crush(pr.pd, trans_sol).x
 end
 
@@ -227,9 +247,7 @@ after the presolve routine (`get_status`), and depending on this status, also
 query the relevant solution information (with `get_optimal_solution`,
 `get_unbounded_ray`, and `get_infeasibility_certificate`).
 
-Notes:
-
-* The function will throw an `ArgumentError` if `dest` is not empty.
+Note: The function will throw an `ArgumentError` if `dest` is not empty.
 """
 function presolve!(dest::MOI.ModelLike, src::MOI.ModelLike, T::Type{<:Real})
     if !MOI.is_empty(dest)
