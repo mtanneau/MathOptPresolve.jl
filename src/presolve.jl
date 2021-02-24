@@ -458,8 +458,10 @@ function presolve!(ps::PresolveData{T}) where {T}
         # TODO: remove column singleton with doubleton equation
 
         # Dual reductions
-        @_return_if_inferred remove_row_singletons!(ps)
-        @_return_if_inferred remove_dominated_columns!(ps)
+        if ps.pb0.is_continuous
+            @_return_if_inferred remove_row_singletons!(ps)
+            @_return_if_inferred remove_dominated_columns!(ps)
+        end
     end
 
     @_return_if_inferred remove_empty_columns!(ps)
