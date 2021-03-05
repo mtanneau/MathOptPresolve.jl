@@ -16,8 +16,8 @@ function cg_strengthening_test1(T::Type)
     =#
 
     #= Expected outcome
-    x₁ + x₂ + x₃             ⩾ 3.7 --> 4x₁ + 4x₂ + 4x₃          ⩾ 15
-    2x₁    + 2x₃ + 4x₄       ⩾ 8.5 --> x₁    + x₃ + 2x₄         ⩾ 5
+    x₁ + x₂ + x₃             ⩾ 3.7 --> 4x₁ + 4x₂ + 4x₃          ⩾ 4
+    2x₁    + 2x₃ + 4x₄       ⩾ 8.5 --> x₁    + x₃ + 2x₄         ⩾ 9
     We will skip the the last 3 constraints because x₅ is continous,
     x₁ is not bounded above and x₆ is not bounded below
     =#
@@ -48,15 +48,15 @@ function cg_strengthening_test1(T::Type)
     MOP.cg_strengthening!(ps)
 
     @test ps.urow == T[Inf, Inf, Inf, Inf, Inf]
-    @test ps.lrow == T[15, 5, 68//10, 0, 23//10]
+    @test ps.lrow == T[4, 9, 68//10, 0, 23//10]
 
-    @test ps.pb0.arows[1].nzval == T[4, 4, 4]
-    @test ps.pb0.arows[2].nzval == T[1, 1, 2]
+    @test ps.pb0.arows[1].nzval == T[1, 1, 1]
+    @test ps.pb0.arows[2].nzval == T[2, 2, 4]
 
-    @test ps.pb0.acols[1].nzval == T[4, 1, 1, -1, 1]
-    @test ps.pb0.acols[2].nzval == T[4, 1, 1]
-    @test ps.pb0.acols[3].nzval == T[4, 1, 3, -1]
-    @test ps.pb0.acols[4].nzval == T[2, 1, 1]
+    @test ps.pb0.acols[1].nzval == T[1, 2, 1, -1, 1]
+    @test ps.pb0.acols[2].nzval == T[1, 1, 1]
+    @test ps.pb0.acols[3].nzval == T[1, 2, 3, -1]
+    @test ps.pb0.acols[4].nzval == T[4, 1, 1]
     @test ps.pb0.acols[5].nzval == T[7]
     @test ps.pb0.acols[6].nzval == T[1]
 
@@ -106,17 +106,17 @@ function cg_strengthening_test2(T::Type)
 
     MOP.cg_strengthening!(ps)
 
-    @test ps.urow == T[Inf, Inf, 21, 14, 4]
-    @test ps.lrow == T[4, -11, -Inf, -Inf, 0]
+    @test ps.urow == T[Inf, Inf, 5, 7, 4]
+    @test ps.lrow == T[4, -2, -Inf, -Inf, 0]
 
     @test ps.pb0.arows[1].nzval == T[1, 1]
-    @test ps.pb0.arows[2].nzval == T[4, -4]
-    @test ps.pb0.arows[3].nzval == T[4, 4]
-    @test ps.pb0.arows[4].nzval == T[2, -2]
+    @test ps.pb0.arows[2].nzval == T[1, -1]
+    @test ps.pb0.arows[3].nzval == T[1, 1]
+    @test ps.pb0.arows[4].nzval == T[1, -1]
 
-    @test ps.pb0.acols[1].nzval == T[1, 4, 1]
-    @test ps.pb0.acols[2].nzval == T[1, -4, 4, 2, 1]
-    @test ps.pb0.acols[3].nzval == T[4, -2, 1]
+    @test ps.pb0.acols[1].nzval == T[1, 1, 1]
+    @test ps.pb0.acols[2].nzval == T[1, -1, 1, 1, 1]
+    @test ps.pb0.acols[3].nzval == T[1, -1, 1]
     return nothing
 end
 
