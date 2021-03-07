@@ -120,12 +120,64 @@ function cg_strengthening_test2(T::Type)
     return nothing
 end
 
+function cg_strengthening_test3(T::Type)
+    # We test CG_strengthening! function on the following MIP
+    #=
+    min     x + y + z
+    s.t.    2x + 4y       ⩽ 7  , s = 1/2
+            3x - 6y       ⩽ 11 , s = 1/3
+            5x + 4y + 4z  ⩾ 6  , s = 1/4
+
+            4 ⩾ x ⩾ 1
+            5 ⩾ y ⩾ -1
+            1 ⩾ z ⩾ 0
+
+            x, y are integers
+            z is binary
+    =#
+
+    C = T[1, 1, 1]
+    lc = T[1, -1, 0]
+    uc = T[4, 5, 1]
+    lr = T[-Inf, -Inf, 6]
+    ur = T[7, 11, Inf]
+    A = T[2 4 0
+          3 -6 0
+          5 4 4]
+
+    varTypes = [MOP.GENERAL_INTEGER, MOP.GENERAL_INTEGER,
+                MOP.BINARY]
+
+    pb = MOP.ProblemData{T}()
+
+    MOP.load_problem!(pb, "Test",
+        true, C, zero(T),
+        sparse(A), lr, ur, lc, uc,
+        varTypes
+    )
+    ps = MOP.PresolveData(pb)
+
+    MOP.cg_strengthening!(ps)
+
+    @test ps.urow == T[3, 3, Inf]
+    @test ps.lrow == T[-Inf, -Inf, 3]
+
+    @test ps.pb0.arows[1].nzval == T[1, 2]
+    @test ps.pb0.arows[2].nzval == T[1, -2]
+    @test ps.pb0.arows[3].nzval == T[2, 1, 1]
+
+    @test ps.pb0.acols[1].nzval == T[1, 1, 2]
+    @test ps.pb0.acols[2].nzval == T[2, -2, 1]
+    @test ps.pb0.acols[3].nzval == T[1]
+    return nothing
+end
 
 @testset "CG Strengthening Inequalities" begin
     for T in COEFF_TYPES
         @testset "$T" begin
             cg_strengthening_test1(T)
             cg_strengthening_test2(T)
+            cg_strengthening_test3(T)
         end
     end
 end
