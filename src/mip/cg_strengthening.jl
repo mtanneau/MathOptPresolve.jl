@@ -13,29 +13,27 @@ satisfy the following criteria:
    positive coefficient variable must have finite upperbound and
    negative coefficient variables must have finite lowerbound.
 
-For example, let aᵢx ⩾ bᵢ be a constraint where aᵢ ⩾ 0,
-and every non-zeoro coefficient in aᵢ corresponds to an
+For example, let ax ⩾ b be a constraint where aᵢ ⩾ 0,
+and every non-zeoro coefficient in a corresponds to an
 integer variable. If there exists an s > 0 such that
-⌈aᵢⱼ s⌉ bᵢ / ⌈bᵢ s⌉ ⩽ aᵢⱼ
+⌈aⱼ s⌉ b / ⌈b s⌉ ⩽ aⱼ
 and there is k such that
-⌈aᵢₖ s⌉ bᵢ / ⌈bᵢ s⌉ < aᵢₖ (*)
-then we will update aᵢx ⩾ bᵢ into ⌈aᵢ s⌉ x ⩾ ⌈bᵢ s⌉
+⌈aₖ s⌉ b / ⌈b s⌉ < aₖ (*)
+then we will update ax ⩾ b into ⌈a s⌉ x ⩾ ⌈b s⌉
 
 We find such a number s heuristically, i.e we try different
 values from the set
-{1, t/a_max, t/a_min, (2t-1)/(2a_min)| t = 1,...,search_range}
-where a_max = sup(|aᵢ|), a_min = inf(|aᵢ|) and search_range
+{1, t/a_max, t/a_min, (2t-1)/(2a_min)| t = 1,..., r}
+where a_max = sup(|aᵢ|), a_min = inf(|aᵢ|) and r is resolution which
 is set to be 5 by default
 
 """
-function cg_strengthening!(ps::PresolveData{T}, search_range::Int = 5) where {T}
+function cg_strengthening!(ps::PresolveData{T}, resolution::Int = 5) where {T}
     ps.pb0.is_continuous && return nothing
 
-    i_index = zeros(Int, ps.pb0.nvar)
-    for i in 1:ps.pb0.ncon
-        nonzero_index = ps.pb0.arows[i].nzind
-        i_index[nonzero_index] .+= 1
+    for i in 1:ps.nrow
         ps.rowflag[i] || continue
+        nonzero_index = ps.pb0.arows[i].nzind
 
         if isfinite(ps.urow[i]) && isfinite(ps.lrow[i]) ||
             any(ps.var_types[nonzero_index] .== CONTINUOUS)
@@ -43,14 +41,14 @@ function cg_strengthening!(ps::PresolveData{T}, search_range::Int = 5) where {T}
             # and any constraint that involves continuous variables
             continue
         else
-            cg_inequality!(ps, i, i_index, search_range)
+            cg_inequality!(ps, i, resolution)
         end
     end
+    col_sync(ps)
     return nothing
 end
 
-function cg_inequality!(ps::PresolveData{T}, i::Int,
-                        i_index::Vector{Int}, search_range::Int) where {T}
+function cg_inequality!(ps::PresolveData{T}, i::Int, resolution::Int) where {T}
     # perform CG strengthening inequality for a single constraint
 
     if isfinite(ps.lrow[i]) # var_bound_1 is lower bound
@@ -89,7 +87,7 @@ function cg_inequality!(ps::PresolveData{T}, i::Int,
 
     # building set for heuristicly finding s
     a = abs.(r)
-    set = build_heuristic_set(a, search_range)
+    set = build_heuristic_set(a, resolution)
 
     # perform search for s and update
     for s in set
@@ -108,11 +106,6 @@ function cg_inequality!(ps::PresolveData{T}, i::Int,
             r[row_pos_index] = ceil.(s*a[row_pos_index])
             r[row_neg_index] = -ceil.(s*a[row_neg_index])
 
-            #update column
-            for j in enumerate(nonzero_index)
-                ps.pb0.acols[j[2]].nzval[i_index[j[2]]] = r[j[1]]
-            end
-
             #update bound
             new_bound = round_function(s*b) +
             ceil.(s*a[row_pos_index])'var_bound_1[col_pos_index] -
@@ -129,14 +122,14 @@ function cg_inequality!(ps::PresolveData{T}, i::Int,
     return nothing
 end
 
-function build_heuristic_set(a::Vector{T}, search_range::Int) where {T}
+function build_heuristic_set(a::Vector{T}, resolution::Int) where {T}
     # building a heuristic set, for every constraints, we will try every every
     # value in this set to see if any of them satisfies condition (*)
     a_max = maximum(a)
     a_min = minimum(a)
 
     set = [T(1)]
-    for t in 1:search_range
+    for t in 1:resolution
         append!(set, [t/a_max, t/a_min, (2*t-1)/(2*a_min)])
     end
     return unique(set)
