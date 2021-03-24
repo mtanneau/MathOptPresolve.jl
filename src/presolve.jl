@@ -320,6 +320,7 @@ include("lp/dominated_column.jl")
 
 include("mip/round_integer_bounds.jl")
 include("mip/bound_strengthening.jl")
+include("mip/coefficient_strengthening.jl")
 
 
 """
@@ -418,6 +419,9 @@ function presolve!(ps::PresolveData{T}) where {T}
     # Strengthen the bounds of integer variables by domain propagation.
     apply!(ps, StrengthenBounds(), config)
 
+    # Coefficient strengthening
+    coefficient_strengthening!(ps)
+
     # Check bound consistency on all rows/columns
     st = bounds_consistency_checks!(ps)
     ps.status == PRIMAL_INFEASIBLE && return ps.status
@@ -461,8 +465,10 @@ function presolve!(ps::PresolveData{T}) where {T}
         # TODO: remove column singleton with doubleton equation
 
         # Dual reductions
-        @_return_if_inferred remove_row_singletons!(ps)
-        @_return_if_inferred remove_dominated_columns!(ps)
+        if ps.pb0.is_continuous
+            @_return_if_inferred remove_row_singletons!(ps)
+            @_return_if_inferred remove_dominated_columns!(ps)
+        end
     end
 
     @_return_if_inferred remove_empty_columns!(ps)
@@ -615,7 +621,6 @@ function remove_empty_columns!(ps::PresolveData{T}) where {T}
     end
     return nothing
 end
-
 
 function remove_row_singletons!(ps::PresolveData{T}) where {T}
     nsingletons = 0

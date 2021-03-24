@@ -8,7 +8,7 @@ end
 
 
 function remove_row_singleton!(ps::PresolveData{T}, i::Int) where {T}
-    ps.pb0.is_continuous || error("Row singleton routine currently only supported for LPs.")
+    # ps.pb0.is_continuous || error("Row singleton routine currently only supported for LPs.")
 
     # Sanity checks
     (ps.rowflag[i] && ps.nzrow[i] == 1) || return nothing

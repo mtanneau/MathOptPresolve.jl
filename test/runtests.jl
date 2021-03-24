@@ -5,6 +5,10 @@ using SparseArrays
 
 const MOP = MathOptPresolve
 
+using MathOptInterface
+const MOI = MathOptInterface
+const MOIU = MOI.Utilities
+
 const COEFF_TYPES = [Float64, BigFloat]
 
 @testset "Problem data" begin
@@ -30,4 +34,11 @@ end
     @testset "bound strengthening" begin
         include("mip/bound_strengthening.jl")
     end
+    @testset "coefficient strengthening" begin
+        include("mip/coefficient_strengthening.jl")
+    end
+end
+
+@testset "MOI" begin
+    include("moi.jl")
 end
