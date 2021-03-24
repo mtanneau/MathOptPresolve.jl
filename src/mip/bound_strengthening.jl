@@ -1,23 +1,23 @@
 @doc raw"""
     StrengthenSingleIntegerBound <: AbstractRule
 
-Strengthen the bounds of integer variables using single constraint.
+Strengthen the bounds of all integer variables using a single constraint.
 
 Let the constraints in the j-th row be
-lrow ⩽ row_S x_S + row_j x_j ⩽ urow
+lrow ⩽ rowₛ xₛ + rowⱼ xⱼ ⩽ urow
 
-Denote the U(row_S x_S) be the upper bound of row_S x_S and
-L(row_S x_S) be the lower bound of row_S x_S.
+Denote the U(rowₛ xₛ) be the upper bound of rowₛ xₛ and
+L(rowₛ xₛ) be the lower bound of rowₛ xₛ.
 
-Then, lrow - U(row_S x_S) ⩽ row_j x_j ⩽ urow - L(row_S x_S).
+Then, lrow - U(rowₛ xₛ) ⩽ rowⱼ xⱼ ⩽ urow - L(rowₛ xₛ).
 
-Thus, if row_j > 0,
-x_j ⩽ floor((urow - L(row_S x_S)) / row_j) and
-x_j ⩾ ceil((lrow - U(row_S x_S) x_j) / row_j).
+Thus, if rowⱼ > 0,
+xⱼ ⩽ floor((urow - L(rowₛ xₛ)) / rowⱼ) and
+xⱼ ⩾ ceil((lrow - U(rowₛ xₛ) xⱼ) / rowⱼ).
 
-If row_j < 0,
-x_j ⩾ ceil((urow - L(row_S x_S)) / row_j) and
-x_j ⩽ floor((lrow - U(row_S x_S) x_j) / row_j).
+If rowⱼ < 0,
+xⱼ ⩾ ceil((urow - L(rowₛ xₛ)) / rowⱼ) and
+xⱼ ⩽ floor((lrow - U(rowₛ xₛ) xⱼ) / rowⱼ).
 """
 
 struct StrengthenSingleIntegerBound <: AbstractRule
@@ -75,20 +75,20 @@ end
 Strengthen the bounds of continuous variables using single constraint.
 
 Let the constraints in the j-th row be
-lrow ⩽ row_S x_S + row_j x_j ⩽ urow
+lrow ⩽ rowₛ xₛ + rowⱼ xⱼ ⩽ urow
 
-Denote the U(row_S x_S) be the upper bound of row_S x_S and
-L(row_S x_S) be the lower bound of row_S x_S.
+Denote the U(rowₛ xₛ) be the upper bound of rowₛ xₛ and
+L(rowₛ xₛ) be the lower bound of rowₛ xₛ.
 
-Then, lrow - U(row_S x_S) ⩽ row_j x_j ⩽ urow - L(row_S x_S).
+Then, lrow - U(rowₛ xₛ) ⩽ rowⱼ xⱼ ⩽ urow - L(rowₛ xₛ).
 
-Thus, if row_j > 0,
-x_j ⩽ (urow - L(row_S x_S)) / row_j and
-x_j ⩾ (lrow - U(row_S x_S) x_j) / row_j.
+Thus, if rowⱼ > 0,
+xⱼ ⩽ (urow - L(rowₛ xₛ)) / rowⱼ and
+xⱼ ⩾ (lrow - U(rowₛ xₛ) xⱼ) / rowⱼ.
 
-If row_j < 0,
-x_j ⩾ (urow - L(row_S x_S)) / row_j and
-x_j ⩽ (lrow - U(row_S x_S) x_j) / row_j.
+If rowⱼ < 0,
+xⱼ ⩾ (urow - L(rowₛ xₛ)) / rowⱼ and
+xⱼ ⩽ (lrow - U(rowₛ xₛ) xⱼ) / rowⱼ.
 """
 
 struct StrengthenSingleContinuousBound <: AbstractRule
