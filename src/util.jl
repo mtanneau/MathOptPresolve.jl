@@ -39,9 +39,10 @@ end
 # In some presolve procedures, when we process rows, we need to update
 # columns accordingly. This function performs synchronization between
 # rows and columns after a presolve method is applied on every rows.
-function col_sync(ps::PresolveData{T}) where {T}
-    i_index = zeros(Int, ps.ncol)
-    for i in 1:ps.nrow
+function sync_columns_to_rows!(ps::PresolveData{T}) where {T}
+    # keep track of how far to update columns
+    i_index = zeros(Int, ps.pb0.nvar)
+    for i in 1:ps.pb0.ncon
         nzind_i = ps.pb0.arows[i].nzind
         for j in nzind_i
             i_index[j] += 1

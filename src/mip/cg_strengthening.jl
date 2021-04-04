@@ -19,115 +19,113 @@ integer variable. If there exists an s > 0 such that
 ⌈aⱼ s⌉ b / ⌈b s⌉ ⩽ aⱼ
 and there is k such that
 ⌈aₖ s⌉ b / ⌈b s⌉ < aₖ (*)
-then we will update ax ⩾ b into ⌈a s⌉ x ⩾ ⌈b s⌉
+then we will update ax ⩾ b into ⌈a s⌉ x ⩾ ⌈b s⌉.
 
 We find such a number s heuristically, i.e we try different
 values from the set
 {1, t/a_max, t/a_min, (2t-1)/(2a_min)| t = 1,..., r}
 where a_max = sup(|aᵢ|), a_min = inf(|aᵢ|) and r is resolution which
-is set to be 5 by default
+is set to be 5 by default.
 
+When performing CG strengthening inequality, we round up positive
+coefficients and round down negative ones, so this procedure
+will not reduce any coefficient to 0.
 """
+
 function cg_strengthening!(ps::PresolveData{T}, resolution::Int = 5) where {T}
     ps.pb0.is_continuous && return nothing
-
-    for i in 1:ps.nrow
+    for i in 1:ps.pb0.ncon
         ps.rowflag[i] || continue
-        nonzero_index = ps.pb0.arows[i].nzind
+        nzind = ps.pb0.arows[i].nzind
+        nzval = ps.pb0.arows[i].nzval
 
         if isfinite(ps.urow[i]) && isfinite(ps.lrow[i]) ||
-            any(ps.var_types[nonzero_index] .== CONTINUOUS)
+            any(ps.var_types[[j for j in nzind if ps.colflag[j]]] .== CONTINUOUS)
             # skip ranged constraints
             # and any constraint that involves continuous variables
             continue
-        else
-            cg_inequality!(ps, i, resolution)
+        elseif isfinite(ps.lrow[i])
+            s, newbound = lowerbound_cg_inequality(nzval, nzind, ps.lrow[i],
+                                    ps.colflag, ps.lcol, ps.ucol, resolution)
+            if s != 0
+                ps.lrow[i] = newbound
+                ps.pb0.arows[i].nzval = [aij > 0 ? ceil(s*aij) : floor(s*aij) for aij in nzval]
+            end
+        elseif isfinite(ps.urow[i])
+            s, newbound = lowerbound_cg_inequality(-nzval, nzind, -ps.urow[i],
+                                    ps.colflag, ps.lcol, ps.ucol, resolution)
+            if s != 0
+                ps.urow[i] = -newbound
+                ps.pb0.arows[i].nzval = [aij > 0 ? ceil(s*aij) : floor(s*aij) for aij in nzval]
+            end
         end
     end
-    col_sync(ps)
     return nothing
 end
 
-function cg_inequality!(ps::PresolveData{T}, i::Int, resolution::Int) where {T}
-    # perform CG strengthening inequality for a single constraint
-
-    if isfinite(ps.lrow[i]) # var_bound_1 is lower bound
-        var_bound_1 = ps.lcol
-        var_bound_2 = ps.ucol
-        b = ps.lrow[i]
-        round_function = ceil
-        sign = 1 # indicator for which direction of inequality we're processing
-    elseif isfinite(ps.urow[i])
-        var_bound_1 = ps.ucol
-        var_bound_2 = ps.lcol
-        b = ps.urow[i]
-        round_function = floor
-        sign = -1
-    end
-
-    r = ps.pb0.arows[i].nzval
-    nonzero_index = ps.pb0.arows[i].nzind
-    row_pos_index = []
-    row_neg_index = []
-    col_pos_index = []
-    col_neg_index = []
-    for j in enumerate(nonzero_index)
-        if r[j[1]] > 0 && isfinite(var_bound_1[j[2]])
-            b -= r[j[1]] * var_bound_1[j[2]]
-            append!(row_pos_index, j[1])
-            append!(col_pos_index, j[2])
-        elseif r[j[1]] < 0 && isfinite(var_bound_2[j[2]])
-            b -= r[j[1]] * var_bound_2[j[2]]
-            append!(row_neg_index, j[1])
-            append!(col_neg_index, j[2])
+function lowerbound_cg_inequality(nzval::Vector{T}, nzind::Vector{Int},
+    b::T, colflag::Vector{Bool},
+    var_lb::Vector{T}, var_ub::Vector{T},
+    resolution::Int) where {T}
+    # Finding the CG inequality for constraints for the form ax ⩾ b,
+    # Return s and new bound, if s = 0, then no CG inequality is found.
+    row_pos_index = Int[]
+    row_neg_index = Int[]
+    col_pos_index = Int[]
+    col_neg_index = Int[]
+    for (k, (j, aij)) in enumerate(zip(nzind, nzval))
+        if aij > 0 && isfinite(var_lb[j])
+            if colflag[j]
+                b -= aij * var_lb[j]
+                push!(row_pos_index, k)
+                push!(col_pos_index, j)
+            end
+        elseif aij < 0 && isfinite(var_ub[j])
+            if colflag[j]
+                b -= aij * var_ub[j]
+                push!(row_neg_index, k)
+                push!(col_neg_index, j)
+            end
         else
-            return nothing
+            # if any positive variable has -inf lower bound
+            # or any negative variable has inf upper bound, then terminate.
+            return 0, b
         end
     end
 
-    # building set for heuristicly finding s
-    a = abs.(r)
+    # building set for heuristicly finding s.
+    a = abs.([aij for (j, aij) in zip(nzind, nzval) if colflag[j]])
     set = build_heuristic_set(a, resolution)
 
-    # perform search for s and update
-    for s in set
+    # perform search for s and update.
+    s = 0
+    for h in set
         found_s = false
-        for val in sign*a
-            if val*round_function(b*s) < round_function(s*val)*b
+        for val in a
+            if val*ceil(b*h) < ceil(h*val)*b
                 found_s = false
                 break
-            elseif val*round_function(b*s) > round_function(s*val)*b
+            elseif val*ceil(b*h) > ceil(h*val)*b
                 found_s = true
             end
         end
 
         if found_s
-            # update row
-            r[row_pos_index] = ceil.(s*a[row_pos_index])
-            r[row_neg_index] = -ceil.(s*a[row_neg_index])
-
-            #update bound
-            new_bound = round_function(s*b) +
-            ceil.(s*a[row_pos_index])'var_bound_1[col_pos_index] -
-            ceil.(s*a[row_neg_index])'var_bound_2[col_neg_index]
-
-            if sign == 1
-                ps.lrow[i] = new_bound
-            else
-                ps.urow[i] = new_bound
-            end
+            s = h
+            b = ceil(s*b) +
+            ceil.(s*a[row_pos_index])'var_lb[col_pos_index] -
+            ceil.(s*a[row_neg_index])'var_ub[col_neg_index]
             break
         end
     end
-    return nothing
+    return s, b
 end
 
-function build_heuristic_set(a::Vector{T}, resolution::Int) where {T}
-    # building a heuristic set, for every constraints, we will try every every
-    # value in this set to see if any of them satisfies condition (*)
-    a_max = maximum(a)
-    a_min = minimum(a)
 
+function build_heuristic_set(a::Vector{T}, resolution::Int) where {T}
+    # building a heuristic set, for every constraints, we will try every
+    # value in this set to see if any of them satisfies condition (*).
+    a_min, a_max = extrema(a)
     set = [T(1)]
     for t in 1:resolution
         append!(set, [t/a_max, t/a_min, (2*t-1)/(2*a_min)])
