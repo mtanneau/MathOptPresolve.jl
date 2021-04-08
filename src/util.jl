@@ -36,9 +36,12 @@ function minimal_activity(ps::PresolveData{T}, i::Int)::T where {T}
     return inf
 end
 
-# In some presolve procedures, when we process rows, we need to update
-# columns accordingly. This function performs synchronization between
-# rows and columns after a presolve method is applied on every rows.
+"""
+In some presolve procedures, when we process rows, we need to update
+columns accordingly. This function performs synchronization between
+rows and columns after a presolve method is applied on every rows.
+"""
+
 function sync_columns_to_rows!(ps::PresolveData{T}) where {T}
     # keep track of how far to update columns
     i_index = zeros(Int, ps.pb0.nvar)
