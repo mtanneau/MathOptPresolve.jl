@@ -39,6 +39,12 @@ end
     end
 end
 
+@testset "Utility" begin
+    @testset "sync columns to rows" begin
+        include("util.jl")
+    end
+end
+
 @testset "MOI" begin
     include("moi.jl")
 end
