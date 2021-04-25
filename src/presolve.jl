@@ -418,6 +418,8 @@ function presolve!(ps::PresolveData{T}) where {T}
 
     # Coefficient strengthening
     coefficient_strengthening!(ps)
+    # Chvatal-Gomory strengthining
+    cg_strengthening!(ps)
 
     # Check bound consistency on all rows/columns
     st = bounds_consistency_checks!(ps)

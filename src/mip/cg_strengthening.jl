@@ -2,196 +2,147 @@
 Perform Chavatal-Gomory strengthening of inequalities
 
 We apply the Chvatal-Goromory procedure to constraints that
-satisfy the following criterions:
+satisfy the following criteria:
 1. All variables with nonzero coefficient must be integral
 2. The constraints are not ranged
-3. If the constraints is of the form ax ⩾ b, then every
-   positive coefficient variables must have finite lowerbound
-   negative coefficient variables must have finite upperbound
+3. If the constraint is of the form ax ⩾ b, then every
+   positive coefficient variable must have finite lowerbound and
+   negative coefficient variables must have finite upperbound.
 
-   If the constraints is of the from ax ⩽ b, then every
-   positive coefficient variables must have finite upperbound
-   negative coefficient variables must have finite lowerbound
+   If the constraint is of the from ax ⩽ b, then every
+   positive coefficient variable must have finite upperbound and
+   negative coefficient variables must have finite lowerbound.
 
-For example, let aᵢx ⩾ bᵢ is a constraint where aᵢ ⩾ 0, and x
-is integer variable. If there exist s > 0 such that
-⌈aᵢⱼ s⌉ bᵢ / ⌈bᵢ s⌉ ⩽ aᵢⱼ
-and there is k such that
-⌈aᵢₖ s⌉ bᵢ / ⌈bᵢ s⌉ < aᵢₖ (*)
-then we will update aᵢx ⩾ bᵢ into ⌈aᵢ s⌉ x ⩾ ⌈bᵢ s⌉
+For example, let ax ⩾ b be a constraint where a ⩾ 0,
+and every non-zero coefficient in a corresponds to an
+integer variable. If there exists an s > 0 such that
+⌈aⱼ s⌉ b / ⌈b s⌉ ⩽ aⱼ
+for all j and there is k such that
+⌈aₖ s⌉ b / ⌈b s⌉ < aₖ (*)
+then we will update ax ⩾ b into ⌈a s⌉ x ⩾ ⌈b s⌉.
 
-We find such a number s heuristicaly i.e, we try different
-values from the following set
-{1, t/a_max, t/a_min, (2t-1)/(2a_min)| t = 1,...,search_range}
-where a_max = sup(|aᵢ|), a_min = inf(|aᵢ|) and search_range
-is set to be 5 by default
+We find such a number s heuristically, i.e we try different
+values from the set
+{1, t/a_max, t/a_min, (2t-1)/(2a_min)| t = 1,..., r}
+where a_max = max(|aᵢ|), a_min = min(|aᵢ|) and r is resolution which
+is set to be 5 by default.
 
+When performing CG strengthening, we round up positive
+coefficients and round down negative ones, so this procedure
+will not reduce any coefficient to 0.
 """
-function cg_strengthening!(ps::PresolveData{T}, search_range::Int = 5) where {T}
+
+function cg_strengthening!(ps::PresolveData{T}, resolution::Int = 5) where {T}
     ps.pb0.is_continuous && return nothing
-
-    # building a heuristic set S, for every constraints, we will try every every
-    # value in this set to see if any of them satisfies condition (*)
-
-    i_index = zeros(Int, ps.pb0.nvar)
     for i in 1:ps.pb0.ncon
-        nonzero_index = ps.pb0.arows[i].nzind
-        i_index[nonzero_index] .+= 1
         ps.rowflag[i] || continue
+        nzind = ps.pb0.arows[i].nzind
+        nzval = ps.pb0.arows[i].nzval
+        finite_lb = isfinite(ps.lrow[i])
+        finite_ub = isfinite(ps.urow[i])
 
-        if isfinite(ps.urow[i]) && isfinite(ps.lrow[i]) ||
-            any(ps.var_types[nonzero_index] .== CONTINUOUS)
+        if finite_lb && finite_ub ||
+            any(ps.var_types[[j for j in nzind if ps.colflag[j]]] .== CONTINUOUS)
             # skip ranged constraints
             # and any constraint that involves continuous variables
             continue
-        elseif isfinite(ps.lrow[i])
-            row = ps.pb0.arows[i]
-            cg_inequality!(ps, row, ps.lcol, ps.ucol, ps.lrow[i], i, i_index, ceil)
-        elseif isfinite(ps.urow[i])
-            row = ps.pb0.arows[i]
-            cg_inequality!(ps, row, ps.ucol, ps.lcol, ps.urow[i], i, i_index, floor)
+        elseif finite_lb
+            s, newbound = lowerbound_cg_inequality(nzval, nzind, ps.lrow[i],
+                                    ps.colflag, ps.lcol, ps.ucol, resolution)
+            if s != 0
+                ps.lrow[i] = newbound
+                ps.pb0.arows[i].nzval = [aij > 0 ? ceil(s*aij) : floor(s*aij) for aij in nzval]
+            end
+        elseif finite_ub
+            s, newbound = lowerbound_cg_inequality(-nzval, nzind, -ps.urow[i],
+                                    ps.colflag, ps.lcol, ps.ucol, resolution)
+            if s != 0
+                ps.urow[i] = -newbound
+                ps.pb0.arows[i].nzval = [aij > 0 ? ceil(s*aij) : floor(s*aij) for aij in nzval]
+            end
+        else
+            error("Unbounded Constraint!")
         end
     end
     return nothing
 end
 
-function build_heuristic_set(a::Vector{T}, search_range::Int = 5) where {T}
-    # building a heuristic set, for every constraints, we will try every every
-    # value in this set to see if any of them satisfies condition (*)
-    a_max = maximum(a)
-    a_min = minimum(a)
+"""
+Find the CG strengthening inequality for constraints of the form ax ⩾ b
 
-    set = [T(1)]
-    for t in 1:search_range
-        append!(set, [t/a_max, t/a_min, (2*t-1)/(2*a_min)])
-    end
-    return unique(set)
-end
+We return the value s for updating a and the new lower bound. If s is 0, then
+no CG inequality is found with the current resolution.
+"""
+function lowerbound_cg_inequality(
+    nzval::Vector{T},
+    nzind::Vector{Int},
+    b::T,
+    colflag::Vector{Bool},
+    var_lb::Vector{T},
+    var_ub::Vector{T},
+    resolution::Int) where {T}
 
-function cg_inequality!(ps::PresolveData{T},
-    row::Row{T}, var_bound_1::Vector{T}, var_bound_2::Vector{T},
-    b::T, i::Int, i_index::Vector{Int}, round_function) where {T}
-    # perform CG strengthening inequality for a single constraint
-
-    # if var_bound_1 is variable lower bound, var_bound_2 is variable upper bound
-    # and round_function is ceil(), we will perform CG strengthening on a constraint
-    # of the form ax ⩾ b. Otherwise, we will perfom GC strengthening on a constraint
-    # of the form ax ⩽ b.
-
-    r = row.nzval
-    nonzero_index = row.nzind
-    row_pos_index = []
-    row_neg_index = []
-    col_pos_index = []
-    col_neg_index = []
-    for j in enumerate(nonzero_index)
-        if r[j[1]] > 0 && isfinite(var_bound_1[j[2]])
-            b -= r[j[1]] * var_bound_1[j[2]]
-            append!(row_pos_index, j[1])
-            append!(col_pos_index, j[2])
-        elseif r[j[1]] < 0 && isfinite(var_bound_2[j[2]])
-            b -= r[j[1]] * var_bound_2[j[2]]
-            append!(row_neg_index, j[1])
-            append!(col_neg_index, j[2])
+    new_bound = b
+    row_pos_index = Int[]
+    row_neg_index = Int[]
+    col_pos_index = Int[]
+    col_neg_index = Int[]
+    for (k, (j, aij)) in enumerate(zip(nzind, nzval))
+        if aij > 0 && isfinite(var_lb[j])
+            if colflag[j]
+                new_bound -= aij * var_lb[j]
+                push!(row_pos_index, k)
+                push!(col_pos_index, j)
+            end
+        elseif aij < 0 && isfinite(var_ub[j])
+            if colflag[j]
+                new_bound -= aij * var_ub[j]
+                push!(row_neg_index, k)
+                push!(col_neg_index, j)
+            end
         else
-            return nothing
+            # if any positive variable has -inf lower bound
+            # or any negative variable has inf upper bound, then terminate.
+            return 0, new_bound
         end
     end
 
-    # building set for heuristicly finding s
-    a = abs.(r)
-    set = build_heuristic_set(a)
+    # building set for heuristicly finding s.
+    a = [abs(aij) for (j, aij) in zip(nzind, nzval) if colflag[j]]
+    set = build_heuristic_set(a, resolution)
 
-    # perform search for s and update
-    if round_function == ceil
-        sign = 1
-    else
-        sign = -1
-    end
-    for s in set
+    # perform search for s and update.
+    s = 0
+    for h in set
         found_s = false
-        for val in sign*a
-            if val*round_function(b*s) < round_function(s*val)*b
+        for val in a
+            if val*ceil(new_bound*h) < ceil(h*val)*new_bound
                 found_s = false
                 break
-            elseif val*round_function(b*s) > round_function(s*val)*b
+            elseif val*ceil(new_bound*h) > ceil(h*val)*new_bound
                 found_s = true
             end
         end
 
         if found_s
-            # update row
-            r[row_pos_index] = ceil.(s*a[row_pos_index])
-            r[row_neg_index] = -ceil.(s*a[row_neg_index])
-
-            #update column
-            for j in enumerate(nonzero_index)
-                ps.pb0.acols[j[2]].nzval[i_index[j[2]]] = r[j[1]]
-            end
-
-            #update bound
-            new_bound = round_function(s*b) +
-            ceil.(s*a[row_pos_index])'var_bound_1[col_pos_index] -
-            ceil.(s*a[row_neg_index])'var_bound_2[col_neg_index]
-
-            if sign == 1
-                ps.lrow[i] = new_bound
-            else
-                ps.urow[i] = new_bound
-            end
+            s = h
+            new_bound = ceil(s*new_bound) +
+            dot(ceil.(s*a[row_pos_index]), var_lb[col_pos_index]) -
+            dot(ceil.(s*a[row_neg_index]), var_ub[col_neg_index])
             break
         end
     end
-    return nothing
+    return s, new_bound
 end
 
-function upperbound_cg!(ps::PresolveData{T}, i::Int, i_index::Vector{Int}, search_range::Int = 5) where {T}
-    # perform CG strengthening inequality for a single constraint of the
-    # from a'x ⩽ b
-    u = ps.urow[i]
-    row = ps.pb0.arows[i].nzval
-    nonzero_index = ps.pb0.arows[i].nzind
-    row_pos_index = []
-    row_neg_index = []
-    col_pos_index = []
-    col_neg_index = []
-    for j in enumerate(nonzero_index)
-        if row[j[1]] > 0 && isfinite(ps.ucol[j[2]])
-            u -= row[j[1]] * ps.ucol[j[2]]
-            append!(row_pos_index, j[1])
-            append!(col_pos_index, j[2])
-        elseif row[j[1]] < 0 && isfinite(ps.lcol[j[2]])
-            u -= row[j[1]] * ps.lcol[j[2]]
-            append!(row_neg_index, j[1])
-            append!(col_neg_index, j[2])
-        else
-            return nothing
-        end
+
+function build_heuristic_set(a::Vector{T}, resolution::Int) where {T}
+    # building a heuristic set, for every constraints, we will try every
+    # value in this set to see if any of them satisfies condition (*).
+    a_min, a_max = extrema(a)
+    set = [T(1)]
+    for t in 1:resolution
+        append!(set, [t/a_max, t/a_min, (2*t-1)/(2*a_min)])
     end
-    a = abs.(row)
-    # building set for heuristicly finding s
-    set = build_heuristic_set(a)
-
-    # perform search for s and update
-    for s in set
-        if any(a*floor(u*s) > floor.(s*a)*u)
-            continue
-        elseif any(a*floor(u*s) < floor.(s*a)*u)
-            #update row
-            row[row_pos_index] = ceil.(s*a[row_pos_index])
-            row[row_neg_index] = floor.(-s*a[row_neg_index])
-
-            #update column
-            for j in enumerate(nonzero_index)
-                ps.pb0.acols[j[2]].nzval[i_index[j[2]]] = row[j[1]]
-            end
-
-            #update bound
-            ps.urow[i] = floor(s*u) +
-            ceil.(s*a[row_pos_index])'ps.ucol[col_pos_index] +
-            floor.(-s*a[row_neg_index])'ps.lcol[col_neg_index]
-            break
-        end
-    end
-    return nothing
+    return unique(set)
 end
