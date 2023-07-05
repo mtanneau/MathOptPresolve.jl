@@ -44,10 +44,10 @@ end
 
 function process_constraint!(
     ir::IntermediaryRepresentation,
-    f::MOI.SingleVariable,
+    f::MOI.VariableIndex,
     s::MOI.EqualTo{T},
 ) where {T<:Real}
-    i = f.variable.value
+    i = f.value
     ir.lvar[i] = s.value
     ir.uvar[i] = s.value
     return nothing
@@ -55,30 +55,30 @@ end
 
 function process_constraint!(
     ir::IntermediaryRepresentation,
-    f::MOI.SingleVariable,
+    f::MOI.VariableIndex,
     s::MOI.LessThan{T},
 ) where {T<:Real}
-    i = f.variable.value
+    i = f.value
     ir.uvar[i] = s.upper
     return nothing
 end
 
 function process_constraint!(
     ir::IntermediaryRepresentation,
-    f::MOI.SingleVariable,
+    f::MOI.VariableIndex,
     s::MOI.GreaterThan{T},
 ) where {T<:Real}
-    i = f.variable.value
+    i = f.value
     ir.lvar[i] = s.lower
     return nothing
 end
 
 function process_constraint!(
     ir::IntermediaryRepresentation,
-    f::MOI.SingleVariable,
+    f::MOI.VariableIndex,
     s::MOI.Interval{T},
 ) where {T<:Real}
-    i = f.variable.value
+    i = f.value
     ir.lvar[i] = s.lower
     ir.uvar[i] = s.upper
     return nothing
@@ -86,20 +86,20 @@ end
 
 function process_constraint!(
     ir::IntermediaryRepresentation,
-    f::MOI.SingleVariable,
+    f::MOI.VariableIndex,
     ::MOI.ZeroOne,
 )
-    i = f.variable.value
+    i = f.value
     ir.var_types[i] = BINARY
     return nothing
 end
 
 function process_constraint!(
     ir::IntermediaryRepresentation,
-    f::MOI.SingleVariable,
+    f::MOI.VariableIndex,
     ::MOI.Integer,
 )
-    i = f.variable.value
+    i = f.value
     ir.var_types[i] = GENERAL_INTEGER
     return nothing
 end
@@ -117,9 +117,8 @@ function process_constraint!(
 ) where {T<:Real}
     row_id = add_row!(ir)
     for term in f.terms
-        vi = term.variable_index
         push!(ir.I, row_id)
-        push!(ir.J, term.variable_index.value)
+        push!(ir.J, term.variable.value)
         push!(ir.V, term.coefficient)
     end
     lb, ub = _get_bounds(s)
@@ -259,7 +258,7 @@ function presolve!(dest::MOI.ModelLike, src::MOI.ModelLike, T::Type{<:Real})
 
     n = MOI.get(src, MOI.NumberOfVariables())
     ir = IntermediaryRepresentation{T}(n)
-    for (F, S) in MOI.get(src, MOI.ListOfConstraints())
+    for (F, S) in MOI.get(src, MOI.ListOfConstraintTypesPresent())
         for ci in MOI.get(src, MOI.ListOfConstraintIndices{F,S}())
             f = MOI.get(src, MOI.ConstraintFunction(), ci)
             s = MOI.get(src, MOI.ConstraintSet(), ci)
@@ -268,7 +267,7 @@ function presolve!(dest::MOI.ModelLike, src::MOI.ModelLike, T::Type{<:Real})
     end
     obj_vec = zeros(T, n)
     for term in obj.terms
-        obj_vec[term.variable_index.value] += term.coefficient
+        obj_vec[term.variable.value] += term.coefficient
     end
     pd = ProblemData{T}()
     load_problem!(
@@ -290,7 +289,7 @@ function presolve!(dest::MOI.ModelLike, src::MOI.ModelLike, T::Type{<:Real})
         extract_reduced_problem!(ps)
         pd = ps.pb_red
         vis = MOI.add_variables(dest, pd.nvar)
-        x = [MOI.SingleVariable(vis[j]) for j = 1:pd.nvar]
+        x = [vis[j] for j = 1:pd.nvar]
         for j = 1:pd.nvar
             MOI.add_constraint(dest, x[j], MOI.Interval{T}(pd.lvar[j], pd.uvar[j]))
             if pd.var_types[j] == BINARY

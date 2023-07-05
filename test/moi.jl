@@ -9,14 +9,13 @@ end
         @testset "solved" begin
             src = MOIU.Model{T}()
             n = 3
-            vis = MOI.add_variables(src, n)
-            x = [MOI.SingleVariable(vis[i]) for i = 1:n]
+            x = MOI.add_variables(src, n)
             MOI.add_constraint(src, x[3], MOI.Integer())
             MOI.add_constraint(src, x[1], MOI.GreaterThan{T}(-1.0))
             MOI.add_constraint(src, x[2], MOI.Interval{T}(-1.0, 3.0))
             MOI.add_constraint(src, x[3], MOI.LessThan{T}(1.2))
             MOI.add_constraint(src, T(2.0) * x[2], MOI.EqualTo{T}(2.5))
-            MOI.set(src, MOI.ObjectiveFunction{MOI.ScalarAffineFunction{T}}(), x[1])
+            MOI.set(src, MOI.ObjectiveFunction{MOI.ScalarAffineFunction{T}}(), one(T) * x[1])
             MOI.set(src, MOI.ObjectiveSense(), MOI.MIN_SENSE)
 
             dest = MOIU.Model{T}()
@@ -38,8 +37,7 @@ end
         @testset "infeasible" begin
             src = MOIU.Model{T}()
             n = 5
-            vis = MOI.add_variables(src, n)
-            x = [MOI.SingleVariable(vis[i]) for i = 1:n]
+            x = MOI.add_variables(src, n)
             MOI.add_constraint(src, x[1], MOI.Interval{T}(0.0, 1.0))
             MOI.add_constraint(src, T(3.0) * x[1] + T(3.0), MOI.LessThan{T}(0.0))
 
@@ -54,10 +52,9 @@ end
         end
         @testset "unbounded" begin
             src = MOIU.Model{T}()
-            vi = MOI.add_variable(src)
-            x = MOI.SingleVariable(vi)
+            x = MOI.add_variable(src)
             MOI.add_constraint(src, x, MOI.GreaterThan{T}(2.0))
-            MOI.set(src, MOI.ObjectiveFunction{MOI.ScalarAffineFunction{T}}(), x)
+            MOI.set(src, MOI.ObjectiveFunction{MOI.ScalarAffineFunction{T}}(), one(T) * x)
             MOI.set(src, MOI.ObjectiveSense(), MOI.MAX_SENSE)
 
             dest = MOIU.Model{T}()
@@ -72,8 +69,7 @@ end
         @testset "not inferred" begin
             src = MOIU.Model{T}()
             n = 3
-            vis = MOI.add_variables(src, n)
-            x = [MOI.SingleVariable(vis[i]) for i = 1:n]
+            x = MOI.add_variables(src, n)
             MOI.add_constraint(src, T(1.0) * x[1] + T(1.0) * x[2], MOI.GreaterThan{T}(0.0))
             MOI.add_constraint(src, T(1.0) * x[1] - T(1.0) * x[2], MOI.GreaterThan{T}(0.0))
             MOI.add_constraint(src, T(2.3) * x[3], MOI.EqualTo{T}(2.3))
