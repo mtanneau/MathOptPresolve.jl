@@ -34,6 +34,15 @@ end
     @testset "coefficient strengthening" begin
         include("mip/coefficient_strengthening.jl")
     end
+    @testset "CG strengthening inequalities" begin
+        include("mip/cg_strengthening.jl")
+    end
+end
+
+@testset "Utility" begin
+    @testset "sync columns to rows" begin
+        include("util.jl")
+    end
 end
 
 @testset "MOI" begin
