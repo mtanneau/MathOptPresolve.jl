@@ -319,6 +319,7 @@ include("lp/free_column_singleton.jl")
 include("lp/dominated_column.jl")
 
 include("mip/round_integer_bounds.jl")
+include("mip/bound_strengthening.jl")
 include("mip/coefficient_strengthening.jl")
 
 
@@ -413,7 +414,10 @@ function presolve!(ps::PresolveData{T}) where {T}
     config = PresolveOptions{T}()
 
     # Round the bounds of integer variables are integers.
-    round_integer_bounds!(ps)
+    apply!(ps, RoundIntegerBounds(), config)
+
+    # Strengthen the bounds of integer variables by domain propagation.
+    apply!(ps, StrengthenBounds(), config)
 
     # Coefficient strengthening
     coefficient_strengthening!(ps)
@@ -437,7 +441,10 @@ function presolve!(ps::PresolveData{T}) where {T}
         npasses += 1
         ps.updated = false
         @debug "Presolve pass $npasses" ps.nrow ps.ncol
-        round_integer_bounds!(ps)
+        apply!(ps, RoundIntegerBounds(), config)
+
+        apply!(ps, StrengthenBounds(), config)
+
         @_return_if_inferred bounds_consistency_checks!(ps)
         @_return_if_inferred remove_empty_columns!(ps)
 
@@ -612,26 +619,6 @@ function remove_empty_columns!(ps::PresolveData{T}) where {T}
         remove_empty_column!(ps, j)
         ps.status == NOT_INFERRED || break
     end
-    return nothing
-end
-
-
-"""
-    round_integer_bounds!(ps::PresolveData)
-
-Ensure all columns with integer variables having integer bounds.
-
-Called once at the very beginning of the presolve procedure.
-"""
-
-function round_integer_bounds!(ps::PresolveData{T}) where {T}
-    # The problem is LP.
-    ps.pb0.is_continuous && return nothing
-
-    for j in 1:ps.pb0.nvar
-        round_integer_bounds!(ps, j)
-    end
-
     return nothing
 end
 

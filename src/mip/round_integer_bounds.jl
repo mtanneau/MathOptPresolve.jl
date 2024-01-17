@@ -1,24 +1,27 @@
-# Allow some numerical errors to avoid the situation
-# like ceiling 1e-10 to 1.
-function approx_ceil(val::T, ϵ_int::T)::T where{T}
-    if (val - floor(val)) < ϵ_int
-        return T(floor(val))
-    end
-    return T(ceil(val))
+@doc raw"""
+    RoundSingleIntegerBound <: AbstractRule
+
+Round the upper and lower bounds of single integer variable to be integers,
+i.e. lcol[j] = ceil(lcol[j]) and ucol[j] = floor(lcol[j]) for general integers
+and lcol[j] = max(0, ceil(lcol[j])) and ucol[j] = min(1, floor(lcol[j])) for
+binary variables.
+"""
+
+struct RoundSingleIntegerBound <: AbstractRule
+    j::Int
 end
 
-# Allow some numerical errors to avoid the situation
-# like flooring 1 - 1e-10 to 0.
-function approx_floor(val::T, ϵ_int::T)::T where{T}
-    if (ceil(val) - val) < ϵ_int
-        return T(ceil(val))
-    end
-    return T(floor(val))
-end
+function apply!(
+    ps::PresolveData{T},
+    r::RoundSingleIntegerBound,
+    config::PresolveOptions{T}
+) where {T}
+    j = r.j
+    ϵ_int = config.IntegerTolerance
 
-function round_integer_bounds!(ps::PresolveData{T}, j::Int, ϵ_int::T=eps(T)) where{T}
     # Column was already removed or the variable is continous.
-    ps.colflag[j] || (ps.var_types[j] != CONTINUOUS) || return nothing
+    ps.colflag[j] || return nothing
+    (ps.var_types[j] == CONTINUOUS) && return nothing
 
     if (ps.var_types[j] == BINARY) # Variable type is binary.
         ps.lcol[j] = T(max(0, approx_ceil(ps.lcol[j], ϵ_int)))
@@ -32,5 +35,28 @@ function round_integer_bounds!(ps::PresolveData{T}, j::Int, ϵ_int::T=eps(T)) wh
         end
     end
 
+    return nothing
+end
+
+
+"""
+    RoundIntegerBounds <: AbstractRule
+
+Round the upper and lower bounds of all integer variables to be integers.
+"""
+
+struct RoundIntegerBounds <: AbstractRule end
+
+function apply!(
+    ps::PresolveData{T},
+    ::RoundIntegerBounds,
+    config::PresolveOptions{T}
+) where {T}
+    # The problem is LP.
+    ps.pb0.is_continuous && return nothing
+
+    for j in 1:ps.pb0.nvar
+        apply!(ps, RoundSingleIntegerBound(j), config)
+    end
     return nothing
 end

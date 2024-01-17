@@ -31,6 +31,9 @@ end
     @testset "round integer bounds" begin
         include("mip/round_integer_bounds.jl")
     end
+    @testset "bound strengthening" begin
+        include("mip/bound_strengthening.jl")
+    end
     @testset "coefficient strengthening" begin
         include("mip/coefficient_strengthening.jl")
     end
