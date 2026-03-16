@@ -88,7 +88,7 @@ function apply!(
         ps.solution.is_dual_ray = true
         ps.solution.z_primal = ps.solution.z_dual = T(Inf)
         i_ = ps.new_con_idx[i]
-        ps.solution.y_upper[i] = one(T)
+        ps.solution.y_upper[i_] = one(T)
         return
     elseif lb > ϵ
         @debug "Row $i is primal infeasible"
