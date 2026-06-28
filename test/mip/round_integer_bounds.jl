@@ -1,4 +1,7 @@
 function round_integer_bounds_tests(T::Type)
+
+    config = MOP.PresolveOptions{T}()
+
     # Build the following model
     #=
         min     x + y + z + w
@@ -26,7 +29,7 @@ function round_integer_bounds_tests(T::Type)
 
     ps = MOP.PresolveData(pb)
 
-    MOP.round_integer_bounds!(ps)
+    MOP.apply!(ps, MOP.RoundIntegerBounds(), config)
 
     @test ps.lcol == T.([-1, -5 // 2, 0, 0])
     @test ps.ucol == T.([1, 21 // 10, 1, 1])
@@ -39,6 +42,9 @@ function round_integer_bounds_tests(T::Type)
 end
 
 function round_integer_bounds_tests_2(T::Type)
+
+    config = MOP.PresolveOptions{T}()
+
     # Build the following model
     #=
         min     x + y
@@ -61,7 +67,7 @@ function round_integer_bounds_tests_2(T::Type)
 
     ps = MOP.PresolveData(pb)
 
-    MOP.round_integer_bounds!(ps)
+    MOP.apply!(ps, MOP.RoundIntegerBounds(), config)
 
     @test ps.lcol == T.([0, 1])
     @test ps.ucol == T.([0, 0])
