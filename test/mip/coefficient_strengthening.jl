@@ -148,7 +148,6 @@ function coef_strengthen_test3(T::Type)
     @test ps.pb0.arows[3].nzval == T[0]
     @test ps.pb0.arows[4].nzval == T[3//2, 2,-1]
 
-
     @test ps.pb0.acols[1].nzval == T[1, 1, 3//2]
     @test ps.pb0.acols[2].nzval == T[-2, 1, 2]
     @test ps.pb0.acols[3].nzval == T[0, 0]
